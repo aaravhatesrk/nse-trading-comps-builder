@@ -1,7 +1,7 @@
 """Immutable data objects shared across the helper."""
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from datetime import date
 from typing import Mapping
 
@@ -104,3 +104,17 @@ class SourcesInfo:
     criteria_lines: tuple[str, ...] = ()
     excluded: tuple[Exclusion, ...] = ()
     dropped_criteria: tuple[str, ...] = ()
+
+
+def profile_to_dict(p: Profile) -> dict:
+    """JSON-safe dict (dates as ISO strings)."""
+    data = asdict(p)
+    data["listing_date"] = p.listing_date.isoformat() if p.listing_date else None
+    return data
+
+
+def profile_from_dict(data: Mapping) -> Profile:
+    fields = {k: data.get(k) for k in Profile.__dataclass_fields__}
+    listing = fields["listing_date"]
+    fields["listing_date"] = date.fromisoformat(listing) if isinstance(listing, str) else listing
+    return Profile(**fields)
