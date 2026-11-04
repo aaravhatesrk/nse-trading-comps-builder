@@ -70,7 +70,7 @@ def create_app(
     today: date | None = None,
 ) -> Flask:
     app = Flask(__name__)
-    build_dir = Path(build_dir)
+    build_dir = Path(build_dir).resolve()
 
     def error(message: str, status: int):
         return jsonify({"error": message}), status

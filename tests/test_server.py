@@ -1,5 +1,6 @@
 from datetime import date, datetime
 from io import BytesIO
+from pathlib import Path
 
 import pytest
 from openpyxl import load_workbook
@@ -211,3 +212,14 @@ def test_build_uses_only_chosen_peers_and_is_idempotent(parts):
     second = client.post("/build", json={"id": out["id"], **BUILD_BODY})
     assert second.status_code == 200 and second.data == first.data
     assert store.get(out["id"]).built_path
+
+
+def test_build_works_with_a_relative_build_dir(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    store = ApprovalStore(tmp_path / "a", clock=lambda: datetime(2026, 11, 4, 12, 0))
+    client = create_app(store=store, load_universe=lambda: UNIVERSE, fetch_profile=fake_fetch,
+                        build_dir=Path("cache/out"), today=TODAY).test_client()
+    out = make_request(client)
+    client.post(f"/approve/{out['id']}", data={"peer": ["P1"]})
+    res = client.post("/build", json={"id": out["id"], **BUILD_BODY})
+    assert res.status_code == 200 and "spreadsheetml" in res.content_type
