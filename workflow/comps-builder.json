@@ -1,0 +1,850 @@
+{
+  "name": "NSE Trading Comps Builder",
+  "nodes": [
+    {
+      "id": "96744308-f5fa-49c3-b1fc-b0ca3434cb73",
+      "name": "Comps Request Form",
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.6,
+      "position": [
+        0,
+        96
+      ],
+      "parameters": {
+        "formTitle": "NSE Trading Comps Builder",
+        "formDescription": "Enter an NSE ticker. Leave any range blank for Auto. Peers are screened from the same Nifty Total Market industry, similarity-scored by AI, and you approve the shortlist by email before the Excel is built. Illustration only, not investment advice.",
+        "formFields": {
+          "values": [
+            {
+              "fieldName": "ticker",
+              "fieldLabel": "ticker",
+              "fieldType": "text",
+              "placeholder": "e.g. MARICO",
+              "requiredField": true
+            },
+            {
+              "fieldName": "email",
+              "fieldLabel": "email",
+              "fieldType": "email",
+              "placeholder": "where to send the Excel",
+              "requiredField": true
+            },
+            {
+              "fieldName": "mcap_min",
+              "fieldLabel": "mcap_min",
+              "fieldType": "number",
+              "placeholder": "Market cap min (Rs cr), blank = Auto"
+            },
+            {
+              "fieldName": "mcap_max",
+              "fieldLabel": "mcap_max",
+              "fieldType": "number",
+              "placeholder": "Market cap max (Rs cr)"
+            },
+            {
+              "fieldName": "rev_min",
+              "fieldLabel": "rev_min",
+              "fieldType": "number",
+              "placeholder": "Revenue min (Rs cr), blank = skip"
+            },
+            {
+              "fieldName": "rev_max",
+              "fieldLabel": "rev_max",
+              "fieldType": "number",
+              "placeholder": "Revenue max (Rs cr)"
+            },
+            {
+              "fieldName": "margin_min",
+              "fieldLabel": "margin_min",
+              "fieldType": "number",
+              "placeholder": "EBITDA margin min (%), blank = Auto"
+            },
+            {
+              "fieldName": "margin_max",
+              "fieldLabel": "margin_max",
+              "fieldType": "number",
+              "placeholder": "EBITDA margin max (%)"
+            },
+            {
+              "fieldName": "roce_min",
+              "fieldLabel": "roce_min",
+              "fieldType": "number",
+              "placeholder": "ROCE min (%), blank = Auto"
+            },
+            {
+              "fieldName": "roce_max",
+              "fieldLabel": "roce_max",
+              "fieldType": "number",
+              "placeholder": "ROCE max (%)"
+            },
+            {
+              "fieldName": "include",
+              "fieldLabel": "include",
+              "fieldType": "text",
+              "placeholder": "Always include tickers, comma separated"
+            },
+            {
+              "fieldName": "exclude",
+              "fieldLabel": "exclude",
+              "fieldType": "text",
+              "placeholder": "Always exclude tickers, comma separated"
+            }
+          ]
+        },
+        "responseMode": "onReceived",
+        "options": {
+          "path": "nse-comps",
+          "respondWithOptions": {
+            "values": {
+              "respondWith": "text",
+              "formSubmittedText": "Thanks. Screening peers now. You will get an email shortly (it can take a few minutes)."
+            }
+          }
+        }
+      },
+      "webhookId": "0f986a37-3302-4875-b047-a98cf15ef069"
+    },
+    {
+      "id": "1b0a4973-8455-41b3-8d6d-0ba3c98d81cf",
+      "name": "Build Screen Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        96
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const f = $input.first().json;\nconst num = (v) => (v === '' || v === null || v === undefined ? null : Number(v));\nconst pair = (a, b, scale) => {\n  const lo = num(a);\n  const hi = num(b);\n  if (lo === null && hi === null) return null;\n  return [lo === null ? null : lo * scale, hi === null ? null : hi * scale];\n};\nconst ranges = {\n  market_cap_cr: pair(f.mcap_min, f.mcap_max, 1),\n  revenue_cr: pair(f.rev_min, f.rev_max, 1),\n  ebitda_margin: pair(f.margin_min, f.margin_max, 0.01),\n  roce: pair(f.roce_min, f.roce_max, 0.01)\n};\nconst overrides = {};\nfor (const [key, value] of Object.entries(ranges)) {\n  if (value) overrides[key] = value;\n}\nconst list = (s) => String(s || '').split(',').map((x) => x.trim()).filter(Boolean);\nif (list(f.include).length) overrides.include = list(f.include);\nif (list(f.exclude).length) overrides.exclude = list(f.exclude);\nconst ticker = String(f.ticker || '').trim();\nconst email = String(f.email || '').trim();\nreturn [{ json: { ticker, email, screen_body: { ticker, overrides } } }];"
+      }
+    },
+    {
+      "id": "cfd0c84c-e903-476a-943b-32ea6298e7f3",
+      "name": "Screen Universe",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        448,
+        96
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://127.0.0.1:5057/screen",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.screen_body) }}",
+        "options": {
+          "timeout": 900000,
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "df3b674d-66c4-458e-8a3c-01bdaeaf90f5",
+      "name": "Check Screen",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        672,
+        96
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const s = $input.first().json;\nlet problem = '';\nif (s.error) {\n  problem = String(s.error);\n} else if (!Array.isArray(s.candidates) || s.candidates.length === 0) {\n  problem = 'No companies in the same industry passed the filters. Loosen the ranges, or leave them blank for Auto.';\n}\nreturn [{ json: { ...s, problem } }];"
+      }
+    },
+    {
+      "id": "51bda564-c3c8-4f5f-bfc9-efda97c23e8b",
+      "name": "Screen Problem?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        896,
+        96
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.problem }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "91d2da15-ca59-4de6-933f-8a227a61602c",
+      "name": "Email Screen Problem",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1120,
+        0
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "sendTo": "={{ $('Build Screen Request').first().json.email }}",
+        "subject": "Your NSE comps request could not be run",
+        "emailType": "text",
+        "message": "={{ $json.problem }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "webhookId": "be0040d0-1675-4b28-8532-3d341397a39f"
+    },
+    {
+      "id": "45ecd8b0-ebdf-4c87-8062-ea229316bb7f",
+      "name": "Build Score Prompts",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        192
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const s = $input.first().json;\nconst rubric = [\n  'You compare a CANDIDATE company to a TARGET company for use in a trading-comparables (comps) analysis.',\n  'Score the candidate on each criterion from 0 to 3, or null if the business descriptions do not contain enough information to judge.',\n  'Scale: 3 = near-identical, 2 = substantial overlap, 1 = partial overlap, 0 = no overlap or opposite.',\n  'Criteria:',\n  '- product: do they sell the same kinds of products or services (category overlap)?',\n  '- customer_channel: same kind of customers and routes to market (consumer vs business, retail vs institutional, distributors vs e-commerce)?',\n  '- business_model: similar business model and revenue mix (branded vs contract, single product vs diversified, recurring vs one-off)?',\n  '- value_drivers: do the same things move earnings (raw material costs, regulation, seasonality, commodity exposure)?',\n  '- operating_model: similar operating model (manufacturer, asset-light, trader, mixed)?',\n  '- geography_positioning: similar geographic mix and market positioning (domestic vs export, premium vs mass)?',\n  'Rules:',\n  '- Use only the two descriptions provided. If a criterion cannot be judged from them, return null, not 0.',\n  '- Give a one-line evidence note per criterion quoting or paraphrasing the descriptions.',\n  '- Also give \"reason\": one sentence on why this candidate is or is not a fair comp.',\n  '- Also give \"mismatch_note\": name any criterion where the candidate clearly differs from the target and say whether it likely affects the valuation multiple. Use an empty string if there is no meaningful mismatch.',\n  'Return ONLY a JSON object of this shape:',\n  '{\"scores\":{\"product\":{\"score\":0,\"evidence\":\"\"},\"customer_channel\":{\"score\":0,\"evidence\":\"\"},\"business_model\":{\"score\":0,\"evidence\":\"\"},\"value_drivers\":{\"score\":0,\"evidence\":\"\"},\"operating_model\":{\"score\":0,\"evidence\":\"\"},\"geography_positioning\":{\"score\":0,\"evidence\":\"\"}},\"reason\":\"\",\"mismatch_note\":\"\"}'\n].join('\\n');\nconst describe = (p) => p.summary || p.name || p.symbol;\nreturn s.candidates.map((c) => ({\n  json: {\n    symbol: c.symbol,\n    profile: c,\n    payload: {\n      model: 'openai/gpt-oss-120b',\n      temperature: 0,\n      response_format: { type: 'json_object' },\n      messages: [\n        { role: 'system', content: rubric },\n        { role: 'user', content: 'TARGET (' + s.target.symbol + '):\\n' + describe(s.target) + '\\n\\nCANDIDATE (' + c.symbol + ', ' + (c.name || '') + '):\\n' + describe(c) }\n      ]\n    }\n  }\n}));"
+      }
+    },
+    {
+      "id": "75e0c729-62ca-4697-bb90-c21629548c60",
+      "name": "Score Similarity With Groq",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1344,
+        192
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.groq.com/openai/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "groqApi",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.payload) }}",
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 1500
+            }
+          },
+          "timeout": 120000
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 4,
+      "waitBetweenTries": 5000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "804c7274-df93-45b4-8625-74394784bdd6",
+      "name": "Collect Scores",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1568,
+        192
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const prompts = $('Build Score Prompts').all();\nconst answers = $input.all();\nconst scored = answers.map((item, i) => {\n  let llm = null;\n  try {\n    llm = JSON.parse(item.json.choices[0].message.content);\n  } catch (e) {\n    llm = null;\n  }\n  return { profile: prompts[i].json.profile, llm };\n});\nreturn [{ json: { target: $('Check Screen').first().json.target, scored } }];"
+      }
+    },
+    {
+      "id": "ffc0b7c5-d11f-4506-9a20-7af7d7129294",
+      "name": "Rank Peers",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1792,
+        192
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://127.0.0.1:5057/rank",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "timeout": 60000
+        }
+      }
+    },
+    {
+      "id": "fbb2e526-bf2d-40ba-89c8-c04caa24cdb6",
+      "name": "Check Shortlist",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2016,
+        192
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const r = $input.first().json;\nconst shortlist = r.shortlist || [];\nconst rejected = (r.rejected || []).map((x) => '- ' + x.symbol + ': ' + x.reason).join('\\n');\nconst target = $('Check Screen').first().json.target.symbol;\nconst too_few = shortlist.length < 3;\nconst message = 'Only ' + shortlist.length + ' of the screened companies were similar enough to ' + target + ' (at least 3 are needed for meaningful comps).\\n\\nNot shortlisted:\\n' + rejected + '\\n\\nTry loosening the ranges or adding tickers under include.';\nreturn [{ json: { ...r, too_few, message } }];"
+      }
+    },
+    {
+      "id": "18717911-d7ab-418b-9399-380767a248ff",
+      "name": "Too Few Peers?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2240,
+        192
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.too_few }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "7d380796-d121-4e17-8c57-88e95ff0465b",
+      "name": "Email Too Few Peers",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        2464,
+        96
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "sendTo": "={{ $('Build Screen Request').first().json.email }}",
+        "subject": "Not enough comparable peers found",
+        "emailType": "text",
+        "message": "={{ $json.message }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "webhookId": "60d11e3c-f0f6-42e4-a6b0-e984d1301530"
+    },
+    {
+      "id": "04f500c3-b916-42a4-b295-be19c5f14ea8",
+      "name": "Prepare Approval Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2464,
+        288
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const r = $input.first().json;\nreturn [{ json: { approval_body: {\n  target: $('Check Screen').first().json.target,\n  shortlist: r.shortlist,\n  email: $('Build Screen Request').first().json.email,\n  resume_url: $execution.resumeUrl\n} } }];"
+      }
+    },
+    {
+      "id": "11632176-ca71-4cfe-96bc-aaa080f3b661",
+      "name": "Create Approval Request",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        2688,
+        288
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://127.0.0.1:5057/approvals",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.approval_body) }}",
+        "options": {
+          "timeout": 30000
+        }
+      }
+    },
+    {
+      "id": "4d8def0c-b527-4c8f-b61d-e2b4fb87e747",
+      "name": "Email Approval Link",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        2912,
+        288
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "sendTo": "={{ $('Build Screen Request').first().json.email }}",
+        "subject": "=Approve peers for {{ $(\"Check Screen\").first().json.target.symbol }} trading comps",
+        "emailType": "html",
+        "message": "=<p>{{ $(\"Rank Peers\").first().json.shortlist.length }} peers were shortlisted for {{ $(\"Check Screen\").first().json.target.symbol }}.</p><p><a href=\"{{ $json.url }}\">Review and approve the peer list</a> (link valid for 24 hours; it opens on the computer that runs the helper).</p><p>Illustration only, not investment advice.</p>",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "webhookId": "b2023537-2bf5-403f-82e8-f0f0856fc585"
+    },
+    {
+      "id": "c34a538a-73db-4923-a962-235a736adbc5",
+      "name": "Wait For Peer Approval",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        3136,
+        288
+      ],
+      "parameters": {
+        "resume": "webhook",
+        "httpMethod": "POST",
+        "limitWaitTime": true,
+        "limitType": "afterTimeInterval",
+        "resumeAmount": 24,
+        "resumeUnit": "hours",
+        "options": {}
+      },
+      "webhookId": "d41985d8-f0d1-465e-bce9-70fa7b60350a"
+    },
+    {
+      "id": "33b6755a-3ea1-465d-bbfe-57131e46b9d0",
+      "name": "Peers Approved?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        3360,
+        288
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.body?.chosen?.length ?? 0 }}",
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              },
+              "rightValue": 0
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "0d2039c7-854c-4e61-acc4-c88bf3d191a1",
+      "name": "Build Commentary Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3584,
+        192
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const chosen = $input.first().json.body.chosen;\nconst target = $('Check Screen').first().json.target;\nconst peers = $('Rank Peers').first().json.shortlist.filter((p) => chosen.includes(p.profile.symbol));\nconst x = (a, b) => (a != null && b != null && b > 0 ? Math.round((a / b) * 10) / 10 : null);\nconst facts = (p) => ({\n  symbol: p.symbol,\n  name: p.name,\n  market_cap_cr: p.market_cap_cr,\n  ev_ebitda: x(p.ev_cr, p.ebitda_cr),\n  ev_sales: x(p.ev_cr, p.revenue_cr),\n  pe: p.pe,\n  pb: p.pb,\n  ebitda_margin: p.ebitda_margin\n});\nconst data = { target: facts(target), peers: peers.map((p) => ({ ...facts(p.profile), similarity: p.similarity })) };\nconst system = [\n  'You write short valuation commentary for an investment banking trading comps sheet.',\n  'Use ONLY the numbers provided. Never invent or recompute figures. If a value is null, say it is not available.',\n  'Return ONLY JSON: {\"summary\":\"2 to 3 sentences on how the target trades versus the peer set\",\"per_peer\":{\"SYMBOL\":\"one sentence on that peer\"}}',\n  'Include every peer symbol in per_peer. Plain text, no markdown.'\n].join('\\n');\nreturn [{ json: { chosen, payload: { model: 'openai/gpt-oss-120b', temperature: 0, response_format: { type: 'json_object' }, messages: [{ role: 'system', content: system }, { role: 'user', content: JSON.stringify(data) }] } } }];"
+      }
+    },
+    {
+      "id": "415fa76d-980a-480c-910c-7ed3183a5757",
+      "name": "Write Commentary With Groq",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        3808,
+        192
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.groq.com/openai/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "groqApi",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.payload) }}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 4,
+      "waitBetweenTries": 5000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "b1528bf0-5e03-4fff-a750-027ce14f7e50",
+      "name": "Prepare Build Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4032,
+        192
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "let commentary = { summary: 'AI commentary was unavailable for this run.', per_peer: {} };\ntry {\n  const parsed = JSON.parse($input.first().json.choices[0].message.content);\n  if (parsed && typeof parsed.summary === 'string') {\n    commentary = { summary: parsed.summary, per_peer: parsed.per_peer || {} };\n  }\n} catch (e) {\n  commentary = { summary: 'AI commentary was unavailable for this run.', per_peer: {} };\n}\nconst screen = $('Check Screen').first().json;\nconst rank = $('Rank Peers').first().json;\nconst rejected = (rank.rejected || []).map((r) => ({ symbol: r.symbol, reason: r.reason }));\nconst build_body = {\n  id: $('Create Approval Request').first().json.id,\n  commentary,\n  sources: {\n    criteria_lines: screen.criteria_lines || [],\n    excluded: [...(screen.excluded || []), ...rejected],\n    dropped_criteria: screen.dropped_criteria || []\n  }\n};\nreturn [{ json: { build_body } }];"
+      }
+    },
+    {
+      "id": "5d613ada-49d2-4e37-b7ad-f1dd215290ee",
+      "name": "Build Excel Workbook",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        4256,
+        192
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://127.0.0.1:5057/build",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.build_body) }}",
+        "options": {
+          "timeout": 120000,
+          "response": {
+            "response": {
+              "responseFormat": "file",
+              "outputPropertyName": "data"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "746e6eac-454c-47d4-8ec1-759b9857b641",
+      "name": "Email Comps Workbook",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        4480,
+        192
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "sendTo": "={{ $('Build Screen Request').first().json.email }}",
+        "subject": "={{ $(\"Check Screen\").first().json.target.symbol }} trading comps (Excel)",
+        "emailType": "html",
+        "message": "<p>Your trading comps workbook is attached: live formulas, football field, AI commentary and a sources sheet.</p><p>Data from Yahoo Finance may be incomplete or delayed. Illustration only, not investment advice.</p>",
+        "options": {
+          "appendAttribution": false,
+          "attachmentsUi": {
+            "attachmentsBinary": [
+              {
+                "property": "data"
+              }
+            ]
+          }
+        }
+      },
+      "webhookId": "c78d2fba-a1d6-4408-99ea-53153309d22c"
+    },
+    {
+      "id": "3a2ef54d-f6f0-4c8b-8c7f-fff527eaf91a",
+      "name": "Email Approval Expired",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        3584,
+        384
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "sendTo": "={{ $('Build Screen Request').first().json.email }}",
+        "subject": "Your comps request expired",
+        "emailType": "text",
+        "message": "The peer approval link expired after 24 hours, so no Excel was built. Please submit the form again.",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "webhookId": "a42f2772-5966-4cd8-96ec-9c453b6d5eda"
+    }
+  ],
+  "connections": {
+    "Comps Request Form": {
+      "main": [
+        [
+          {
+            "node": "Build Screen Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Screen Request": {
+      "main": [
+        [
+          {
+            "node": "Screen Universe",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Screen Universe": {
+      "main": [
+        [
+          {
+            "node": "Check Screen",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Screen": {
+      "main": [
+        [
+          {
+            "node": "Screen Problem?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Screen Problem?": {
+      "main": [
+        [
+          {
+            "node": "Email Screen Problem",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build Score Prompts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Score Prompts": {
+      "main": [
+        [
+          {
+            "node": "Score Similarity With Groq",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Score Similarity With Groq": {
+      "main": [
+        [
+          {
+            "node": "Collect Scores",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Collect Scores": {
+      "main": [
+        [
+          {
+            "node": "Rank Peers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rank Peers": {
+      "main": [
+        [
+          {
+            "node": "Check Shortlist",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Shortlist": {
+      "main": [
+        [
+          {
+            "node": "Too Few Peers?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Too Few Peers?": {
+      "main": [
+        [
+          {
+            "node": "Email Too Few Peers",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare Approval Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Approval Request": {
+      "main": [
+        [
+          {
+            "node": "Create Approval Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Approval Request": {
+      "main": [
+        [
+          {
+            "node": "Email Approval Link",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email Approval Link": {
+      "main": [
+        [
+          {
+            "node": "Wait For Peer Approval",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait For Peer Approval": {
+      "main": [
+        [
+          {
+            "node": "Peers Approved?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Peers Approved?": {
+      "main": [
+        [
+          {
+            "node": "Build Commentary Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Email Approval Expired",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Commentary Prompt": {
+      "main": [
+        [
+          {
+            "node": "Write Commentary With Groq",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write Commentary With Groq": {
+      "main": [
+        [
+          {
+            "node": "Prepare Build Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Build Request": {
+      "main": [
+        [
+          {
+            "node": "Build Excel Workbook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Excel Workbook": {
+      "main": [
+        [
+          {
+            "node": "Email Comps Workbook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true
+  }
+}
