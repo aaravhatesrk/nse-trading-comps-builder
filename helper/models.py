@@ -38,3 +38,46 @@ class Profile:
     avg_daily_value_cr: float | None = None
     insider_pct: float | None = None
     fiscal_year_end: str | None = None
+
+
+@dataclass(frozen=True)
+class Range:
+    """Inclusive numeric range; either end can be open. Range() is inactive (no filter)."""
+
+    lo: float | None = None
+    hi: float | None = None
+
+    @property
+    def is_active(self) -> bool:
+        return self.lo is not None or self.hi is not None
+
+    def contains(self, value: float) -> bool:
+        return (self.lo is None or value >= self.lo) and (self.hi is None or value <= self.hi)
+
+
+@dataclass(frozen=True)
+class Criteria:
+    market_cap_cr: Range = Range()
+    revenue_cr: Range = Range()
+    ebitda_margin: Range = Range()
+    revenue_cagr_3y: Range = Range()
+    roce: Range = Range()
+    insider_pct: Range = Range()
+    max_net_debt_ebitda: float | None = None
+    min_daily_value_cr: float | None = None
+    min_listing_years: float = 3.0
+    include: tuple[str, ...] = ()
+    exclude: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class Exclusion:
+    symbol: str
+    reason: str
+
+
+@dataclass(frozen=True)
+class ScreenResult:
+    kept: tuple[Profile, ...]
+    excluded: tuple[Exclusion, ...]
+    dropped_criteria: tuple[str, ...] = ()
