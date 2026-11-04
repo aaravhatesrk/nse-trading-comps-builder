@@ -43,25 +43,25 @@ def test_normalize_ticker():
     assert normalize_ticker("Marico") == "MARICO"
 
 
-def test_auto_market_cap_band_is_half_to_three_times():
+def test_auto_market_cap_band_is_half_to_five_times():
     criteria = auto_criteria(prof(market_cap_cr=100000.0), {})
     assert criteria.market_cap_cr.lo == pytest.approx(50000.0)
-    assert criteria.market_cap_cr.hi == pytest.approx(300000.0)
+    assert criteria.market_cap_cr.hi == pytest.approx(500000.0)
 
 
 def test_auto_defaults_match_spec():
     c = auto_criteria(prof(ebitda_margin=0.17, roce=0.39), {})
     assert (c.ebitda_margin.lo, c.ebitda_margin.hi) == pytest.approx((0.07, 0.27))
-    assert (c.roce.lo, c.roce.hi) == pytest.approx((0.29, 0.49))
+    assert not c.roce.is_active
     assert c.max_net_debt_ebitda == 3.0 and c.min_listing_years == 3.0
     assert not c.revenue_cr.is_active and not c.revenue_cagr_3y.is_active
     assert c.min_daily_value_cr is None and not c.insider_pct.is_active
 
 
 def test_override_replaces_auto_range_and_none_none_switches_off():
-    c = auto_criteria(TARGET, {"market_cap_cr": (1000, 5000), "roce": (None, None)})
+    c = auto_criteria(TARGET, {"market_cap_cr": (1000, 5000), "ebitda_margin": (None, None)})
     assert (c.market_cap_cr.lo, c.market_cap_cr.hi) == (1000, 5000)
-    assert not c.roce.is_active
+    assert not c.ebitda_margin.is_active
 
 
 def test_peer_inside_all_ranges_is_kept():
@@ -90,17 +90,17 @@ def test_recent_ipo_excluded_by_listing_age():
 
 
 def test_missing_active_criterion_excludes_with_missing_data_reason():
-    candidates = [prof("A"), prof("B"), prof("C"), prof("NOROCE", roce=None)]
+    candidates = [prof("A"), prof("B"), prof("C"), prof("NOMARGIN", ebitda_margin=None)]
     result = run(candidates)
-    assert reasons(result)["NOROCE"] == "missing data: roce"
+    assert reasons(result)["NOMARGIN"] == "missing data: ebitda margin"
     assert {p.symbol for p in result.kept} == {"A", "B", "C"}
 
 
 def test_criterion_dropped_when_most_candidates_lack_data():
-    candidates = [prof("A", roce=None), prof("B", roce=None), prof("C")]
+    candidates = [prof("A", ebitda_margin=None), prof("B", ebitda_margin=None), prof("C")]
     result = run(candidates)
     assert {p.symbol for p in result.kept} == {"A", "B", "C"}
-    assert any("roce" in note for note in result.dropped_criteria)
+    assert any("ebitda margin" in note for note in result.dropped_criteria)
 
 
 def test_net_cash_peer_passes_leverage_cap_and_high_leverage_fails():

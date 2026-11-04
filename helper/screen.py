@@ -65,9 +65,8 @@ def auto_criteria(target: Profile, overrides: Mapping[str, Any]) -> Criteria:
     if unknown:
         raise ValueError(f"unknown criteria: {sorted(unknown)}")
     fields: dict[str, Any] = {
-        "market_cap_cr": _band(target.market_cap_cr, 0.5, 3.0),
+        "market_cap_cr": _band(target.market_cap_cr, 0.5, 5.0),
         "ebitda_margin": _plus_minus(target.ebitda_margin, 0.10),
-        "roce": _plus_minus(target.roce, 0.10),
         "max_net_debt_ebitda": 3.0,
     }
     for key, value in overrides.items():

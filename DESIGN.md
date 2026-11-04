@@ -131,3 +131,10 @@ Other decisions:
 ## Decision on sample data (Aarav)
 
 - The GitHub repo includes a sample Marico comps Excel, with a README and Sources-sheet disclaimer: data from Yahoo Finance, illustration only, not investment advice.
+
+## Task 8 spike result (2026-11-04)
+
+Wait-node resume works on localhost with no tunnel. A published Webhook-triggered workflow reached a Wait node (resume: webhook, 24h limit) and went `waiting`; the signed `$execution.resumeUrl` (http://localhost:5678/webhook-waiting/<id>?signature=...) resumed it to `success` when POSTed. So the approval page posts the choice to the request's `resume_url`; the polling fallback (`GET /approvals/<id>/status`) stays as a safety net. Limitation: both the n8n form and the approval link are `localhost` URLs, so the whole flow works on the machine running n8n and the helper. Anyone cloning the repo runs both locally.
+
+## Auto defaults change (2026-11-04, user decision after first live MARICO run)
+Real MARICO run with the original Auto defaults returned zero peers. At the user's direction: Auto market cap band is now 0.5x to 5x of the target (was 0.5x to 3x) and ROCE is no longer an Auto criterion (still available as an optional form range). EBITDA margin stays +/-10 points and net debt/EBITDA stays at most 3x.
