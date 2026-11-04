@@ -1,0 +1,8 @@
+{
+  "target": "INFY",
+  "reference": {
+    "TCS": "core", "HCLTECH": "core", "WIPRO": "core", "TECHM": "core", "LTM": "core",
+    "PERSISTENT": "borderline", "COFORGE": "borderline", "MPHASIS": "borderline", "LTTS": "borderline", "OFSS": "borderline",
+    "AFFLE": "out", "MAPMYINDIA": "out", "NETWEB": "out", "ZAGGLE": "out", "TANLA": "out"
+  }
+}

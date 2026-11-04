@@ -1,0 +1,8 @@
+{
+  "target": "MARICO",
+  "reference": {
+    "DABUR": "core", "GODREJCP": "core", "EMAMILTD": "core", "BAJAJCON": "core",
+    "HINDUNILVR": "borderline", "COLPAL": "borderline", "JYOTHYLAB": "borderline", "TATACONSUM": "borderline",
+    "NESTLEIND": "out", "BRITANNIA": "out"
+  }
+}
