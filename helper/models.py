@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
+from typing import Mapping
 
 
 @dataclass(frozen=True)
@@ -80,4 +81,26 @@ class Exclusion:
 class ScreenResult:
     kept: tuple[Profile, ...]
     excluded: tuple[Exclusion, ...]
+    dropped_criteria: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class PeerRow:
+    profile: Profile
+    similarity: int
+    reason: str
+    mismatch_note: str = ""
+
+
+@dataclass(frozen=True)
+class Commentary:
+    summary: str
+    per_peer: Mapping[str, str]
+
+
+@dataclass(frozen=True)
+class SourcesInfo:
+    fetched_on: date
+    criteria_lines: tuple[str, ...] = ()
+    excluded: tuple[Exclusion, ...] = ()
     dropped_criteria: tuple[str, ...] = ()
