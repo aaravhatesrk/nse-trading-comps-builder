@@ -1,0 +1,464 @@
+{
+"AWL": {
+"scores": {
+"product": 2,
+"customer_channel": 2,
+"business_model": 1,
+"value_drivers": 2,
+"operating_model": 2,
+"geography_positioning": 2
+},
+"total": 60
+},
+"ABDL": {
+"scores": {
+"product": 0,
+"customer_channel": 2,
+"business_model": 2,
+"value_drivers": 1,
+"operating_model": 3,
+"geography_positioning": 2
+},
+"total": 47
+},
+"AVANTIFEED": {
+"scores": {
+"product": 0,
+"customer_channel": 0,
+"business_model": 0,
+"value_drivers": 0,
+"operating_model": 0,
+"geography_positioning": 1
+},
+"total": 3
+},
+"BAJAJCON": {
+"scores": {
+"product": 2,
+"customer_channel": 3,
+"business_model": 2,
+"value_drivers": 3,
+"operating_model": 2,
+"geography_positioning": 2
+},
+"total": 77
+},
+"BALRAMCHIN": {
+"scores": {
+"product": 0,
+"customer_channel": 0,
+"business_model": 0,
+"value_drivers": 1,
+"operating_model": 0,
+"geography_positioning": 1
+},
+"total": 7
+},
+"BRITANNIA": {
+"scores": {
+"product": 1,
+"customer_channel": 2,
+"business_model": 3,
+"value_drivers": 2,
+"operating_model": 2,
+"geography_positioning": 2
+},
+"total": 63
+},
+"CCL": {
+"scores": {
+"product": 1,
+"customer_channel": 2,
+"business_model": 2,
+"value_drivers": 2,
+"operating_model": 2,
+"geography_positioning": 2
+},
+"total": 57
+},
+"COLPAL": {
+"scores": {
+"product": 1,
+"customer_channel": 2,
+"business_model": 2,
+"value_drivers": 2,
+"operating_model": 2,
+"geography_positioning": 1
+},
+"total": 53
+},
+"CUPID": {
+"scores": {
+"product": 1,
+"customer_channel": null,
+"business_model": 1,
+"value_drivers": 1,
+"operating_model": 2,
+"geography_positioning": 1
+},
+"total": 37
+},
+"DOMS": {
+"scores": {
+"product": 1,
+"customer_channel": 1,
+"business_model": 2,
+"value_drivers": 2,
+"operating_model": 2,
+"geography_positioning": 2
+},
+"total": 50
+},
+"DABUR": {
+"scores": {
+"product": 2,
+"customer_channel": 2,
+"business_model": 2,
+"value_drivers": 2,
+"operating_model": 2,
+"geography_positioning": 2
+},
+"total": 67
+},
+"EIDPARRY": {
+"scores": {
+"product": 0,
+"customer_channel": 0,
+"business_model": 0,
+"value_drivers": 0,
+"operating_model": 0,
+"geography_positioning": 1
+},
+"total": 3
+},
+"EMAMILTD": {
+"scores": {
+"product": 2,
+"customer_channel": 2,
+"business_model": 2,
+"value_drivers": 2,
+"operating_model": 2,
+"geography_positioning": 2
+},
+"total": 67
+},
+"GILLETTE": {
+"scores": {
+"product": 1,
+"customer_channel": 2,
+"business_model": 2,
+"value_drivers": 1,
+"operating_model": 1,
+"geography_positioning": 2
+},
+"total": 50
+},
+"GODFRYPHLP": {
+"scores": {
+"product": 0,
+"customer_channel": 1,
+"business_model": 1,
+"value_drivers": 2,
+"operating_model": 2,
+"geography_positioning": 2
+},
+"total": 33
+},
+"GODREJAGRO": {
+"scores": {
+"product": 1,
+"customer_channel": 1,
+"business_model": 1,
+"value_drivers": 1,
+"operating_model": 1,
+"geography_positioning": 1
+},
+"total": 33
+},
+"GODREJCP": {
+"scores": {
+"product": 2,
+"customer_channel": null,
+"business_model": 3,
+"value_drivers": 2,
+"operating_model": 3,
+"geography_positioning": 2
+},
+"total": 79
+},
+"GOKULAGRO": {
+"scores": {
+"product": 2,
+"customer_channel": 2,
+"business_model": 1,
+"value_drivers": 2,
+"operating_model": 1,
+"geography_positioning": 1
+},
+"total": 53
+},
+"GAEL": {
+"scores": {
+"product": 2,
+"customer_channel": 1,
+"business_model": 1,
+"value_drivers": 2,
+"operating_model": 1,
+"geography_positioning": 2
+},
+"total": 50
+},
+"HERITGFOOD": {
+"scores": {
+"product": 0,
+"customer_channel": 1,
+"business_model": 1,
+"value_drivers": 1,
+"operating_model": 1,
+"geography_positioning": 1
+},
+"total": 23
+},
+"HINDUNILVR": {
+"scores": {
+"product": 2,
+"customer_channel": 3,
+"business_model": 2,
+"value_drivers": 2,
+"operating_model": 2,
+"geography_positioning": 2
+},
+"total": 73
+},
+"HONASA": {
+"scores": {
+"product": 2,
+"customer_channel": 1,
+"business_model": 1,
+"value_drivers": 1,
+"operating_model": 1,
+"geography_positioning": 2
+},
+"total": 47
+},
+"ITC": {
+"scores": {
+"product": 1,
+"customer_channel": 1,
+"business_model": 1,
+"value_drivers": 1,
+"operating_model": 1,
+"geography_positioning": 2
+},
+"total": 37
+},
+"INDIAGLYCO": {
+"scores": {
+"product": 0,
+"customer_channel": 0,
+"business_model": 0,
+"value_drivers": 0,
+"operating_model": 1,
+"geography_positioning": 2
+},
+"total": 10
+},
+"JYOTHYLAB": {
+"scores": {
+"product": 2,
+"customer_channel": 3,
+"business_model": 3,
+"value_drivers": 2,
+"operating_model": 3,
+"geography_positioning": 2
+},
+"total": 83
+},
+"KRBL": {
+"scores": {
+"product": 1,
+"customer_channel": 1,
+"business_model": 1,
+"value_drivers": 2,
+"operating_model": 1,
+"geography_positioning": 2
+},
+"total": 40
+},
+"KSCL": {
+"scores": {
+"product": 0,
+"customer_channel": 1,
+"business_model": 1,
+"value_drivers": 1,
+"operating_model": 2,
+"geography_positioning": 2
+},
+"total": 30
+},
+"KWIL": {
+"scores": {
+"product": 1,
+"customer_channel": 2,
+"business_model": 1,
+"value_drivers": 2,
+"operating_model": 2,
+"geography_positioning": 1
+},
+"total": 47
+},
+"LTFOODS": {
+"scores": {
+"product": 1,
+"customer_channel": null,
+"business_model": 2,
+"value_drivers": 2,
+"operating_model": 2,
+"geography_positioning": 2
+},
+"total": 54
+},
+"MANORAMA": {
+"scores": {
+"product": 1,
+"customer_channel": 0,
+"business_model": 0,
+"value_drivers": 1,
+"operating_model": 1,
+"geography_positioning": 1
+},
+"total": 20
+},
+"BECTORFOOD": {
+"scores": {
+"product": 1,
+"customer_channel": 2,
+"business_model": 2,
+"value_drivers": 2,
+"operating_model": 3,
+"geography_positioning": 1
+},
+"total": 57
+},
+"NESTLEIND": {
+"scores": {
+"product": 1,
+"customer_channel": 2,
+"business_model": 2,
+"value_drivers": 2,
+"operating_model": 3,
+"geography_positioning": 2
+},
+"total": 60
+},
+"PATANJALI": {
+"scores": {
+"product": 2,
+"customer_channel": null,
+"business_model": 1,
+"value_drivers": 2,
+"operating_model": 1,
+"geography_positioning": 2
+},
+"total": 54
+},
+"PICCADIL": {
+"scores": {
+"product": 0,
+"customer_channel": 1,
+"business_model": 1,
+"value_drivers": 1,
+"operating_model": 2,
+"geography_positioning": 2
+},
+"total": 30
+},
+"RADICO": {
+"scores": {
+"product": 0,
+"customer_channel": 1,
+"business_model": 1,
+"value_drivers": 1,
+"operating_model": 1,
+"geography_positioning": 2
+},
+"total": 27
+},
+"RENUKA": {
+"scores": {
+"product": 0,
+"customer_channel": 0,
+"business_model": 0,
+"value_drivers": 1,
+"operating_model": 1,
+"geography_positioning": 2
+},
+"total": 13
+},
+"TATACONSUM": {
+"scores": {
+"product": 1,
+"customer_channel": 2,
+"business_model": 1,
+"value_drivers": 2,
+"operating_model": 2,
+"geography_positioning": 1
+},
+"total": 47
+},
+"TI": {
+"scores": {
+"product": 0,
+"customer_channel": 1,
+"business_model": 2,
+"value_drivers": 1,
+"operating_model": 2,
+"geography_positioning": 2
+},
+"total": 37
+},
+"UBL": {
+"scores": {
+"product": 0,
+"customer_channel": null,
+"business_model": 1,
+"value_drivers": 1,
+"operating_model": 1,
+"geography_positioning": 2
+},
+"total": 25
+},
+"UNITDSPR": {
+"scores": {
+"product": 0,
+"customer_channel": 2,
+"business_model": 2,
+"value_drivers": 1,
+"operating_model": 2,
+"geography_positioning": 2
+},
+"total": 43
+},
+"VBL": {
+"scores": {
+"product": 0,
+"customer_channel": 2,
+"business_model": 1,
+"value_drivers": 2,
+"operating_model": 2,
+"geography_positioning": 2
+},
+"total": 40
+},
+"ZYDUSWELL": {
+"scores": {
+"product": 2,
+"customer_channel": 2,
+"business_model": 2,
+"value_drivers": 2,
+"operating_model": 2,
+"geography_positioning": 2
+},
+"total": 67
+}
+}
