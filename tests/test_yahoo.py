@@ -103,9 +103,9 @@ def test_live_marico_smoke(tmp_path):
 
 
 def test_expired_crumb_is_refreshed_once():
-    # fc.yahoo.com, getcrumb, quote=401 (expired), fc.yahoo.com, getcrumb, quote=200
-    session = _Session([200, 200, 401, 200, 200, 200])
+    # fc.yahoo.com, getcrumb, quote=401 (expired), fc.yahoo.com, getcrumb, quote=200, statements=200
+    session = _Session([200, 200, 401, 200, 200, 200, 200])
     client = YahooClient(session=session, sleep=lambda s: None)
     quote, _ = client.fetch_symbol("MARICO")
     assert quote == {"ok": True}
-    assert session.calls == 6
+    assert session.calls == 7

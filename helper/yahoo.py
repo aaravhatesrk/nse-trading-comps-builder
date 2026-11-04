@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import time
 from datetime import date
 from pathlib import Path
@@ -9,10 +10,14 @@ from typing import Any, Callable
 
 import requests
 
+from helper.metrics import revenue_cagr, roce
 from helper.models import Profile, UniverseRow
+
+log = logging.getLogger(__name__)
 
 _UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36"}
 _MODULES = "price,summaryDetail,defaultKeyStatistics,financialData,assetProfile"
+_STATEMENT_TYPES = "annualTotalAssets,annualCurrentLiabilities,annualEBIT,annualTotalRevenue"
 _CRORE = 1e7
 _ATTEMPTS = 3
 
@@ -44,7 +49,8 @@ class YahooClient:
         return self._crumb
 
     def fetch_symbol(self, symbol: str) -> tuple[dict, dict]:
-        url = f"https://query2.finance.yahoo.com/v10/finance/quoteSummary/{symbol}.NS"
+        base = "https://query2.finance.yahoo.com"
+        url = f"{base}/v10/finance/quoteSummary/{symbol}.NS"
         try:
             quote = self.get_json(url, {"modules": _MODULES, "crumb": self._crumb_value()})
         except RuntimeError as exc:
@@ -52,7 +58,18 @@ class YahooClient:
                 raise
             self._crumb = None  # crumb expired: fetch a new one and retry once
             quote = self.get_json(url, {"modules": _MODULES, "crumb": self._crumb_value()})
-        return quote, {}
+        params = {
+            "type": _STATEMENT_TYPES,
+            "period1": 1500000000,
+            "period2": int(time.time()) + 31536000,
+            "crumb": self._crumb_value(),
+        }
+        try:
+            ts = self.get_json(f"{base}/ws/fundamentals-timeseries/v1/finance/timeseries/{symbol}.NS", params)
+        except RuntimeError as exc:
+            log.warning("statements unavailable for %s: %s", symbol, exc)
+            ts = {}
+        return quote, ts
 
 
 def _raw(res: dict, module: str, key: str) -> float | None:
@@ -66,13 +83,41 @@ def _cr(value: float | None) -> float | None:
     return None if value is None else value / _CRORE
 
 
-def parse_profile(symbol: str, quote: dict, row: UniverseRow | None) -> Profile:
+def parse_statements(ts: dict) -> dict[str, list[tuple[str, float | None]]]:
+    """Annual series per statement type as (as-of date, value) pairs, newest first."""
+    series: dict[str, list[tuple[str, float | None]]] = {}
+    for item in (ts.get("timeseries") or {}).get("result") or []:
+        kind = (item.get("meta") or {}).get("type", [None])[0]
+        points = []
+        for entry in item.get(kind) or []:
+            if not entry:
+                continue
+            raw = (entry.get("reportedValue") or {}).get("raw")
+            points.append((entry["asOfDate"], raw if isinstance(raw, (int, float)) else None))
+        series[kind] = sorted(points, key=lambda p: p[0], reverse=True)
+    return series
+
+
+def _statement_metrics(ts: dict) -> tuple[float | None, float | None, str | None]:
+    series = parse_statements(ts)
+    ebit_points = series.get("annualEBIT") or []
+    if not ebit_points:
+        return None, None, None
+    latest, ebit = ebit_points[0]
+    assets = dict(series.get("annualTotalAssets") or []).get(latest)
+    liabilities = dict(series.get("annualCurrentLiabilities") or []).get(latest)
+    revenues = [v for _, v in series.get("annualTotalRevenue") or []]
+    return roce(ebit, assets, liabilities), revenue_cagr(revenues), latest
+
+
+def parse_profile(symbol: str, quote: dict, row: UniverseRow | None, ts: dict | None = None) -> Profile:
     result = (quote.get("quoteSummary") or {}).get("result") or []
     if not result:
         raise LookupError(f"no Yahoo data for {symbol}")
     res = result[0]
     price = _raw(res, "price", "regularMarketPrice")
     avg_volume = _raw(res, "summaryDetail", "averageVolume")
+    statement_roce, cagr, fiscal_year_end = _statement_metrics(ts or {})
     debt = _raw(res, "financialData", "totalDebt")
     cash = _raw(res, "financialData", "totalCash")
     return Profile(
@@ -93,6 +138,9 @@ def parse_profile(symbol: str, quote: dict, row: UniverseRow | None) -> Profile:
         pb=_raw(res, "defaultKeyStatistics", "priceToBook"),
         avg_daily_value_cr=None if price is None or avg_volume is None else price * avg_volume / _CRORE,
         insider_pct=_raw(res, "defaultKeyStatistics", "heldPercentInsiders"),
+        roce=statement_roce,
+        revenue_cagr_3y=cagr,
+        fiscal_year_end=fiscal_year_end,
     )
 
 
@@ -116,8 +164,9 @@ def fetch_profile(
     folder.mkdir(parents=True, exist_ok=True)
     path = folder / f"{symbol}_{date.today().isoformat()}.json"
     if path.exists():
-        quote = json.loads(path.read_text(encoding="utf-8"))["quote"]
+        cached = json.loads(path.read_text(encoding="utf-8"))
+        quote, ts = cached["quote"], cached.get("ts") or {}
     else:
         quote, ts = (fetcher or _default_fetcher)(symbol)
         path.write_text(json.dumps({"quote": quote, "ts": ts}), encoding="utf-8")
-    return parse_profile(symbol, quote, row)
+    return parse_profile(symbol, quote, row, ts)
