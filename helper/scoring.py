@@ -12,7 +12,8 @@ CRITERIA: tuple[tuple[str, int], ...] = (
     ("operating_model", 10),
     ("geography_positioning", 10),
 )
-CUTOFF = 65  # provisional; see DESIGN.md calibration notes
+AUTO_CUTOFF = 70  # at or above: pre-ticked on the approval page
+REVIEW_FLOOR = 60  # 60 to 69: shown unticked for the user to decide; below: dropped
 _MAX_SCORE = 3
 
 
@@ -25,6 +26,7 @@ class Decision:
     total: int | None
     kept: bool
     reason: str
+    tier: str = "out"  # "auto", "review" or "out"
 
 
 def weighted_total(scores: Mapping[str, int | None]) -> int | None:
@@ -45,9 +47,11 @@ def decide(scores: Mapping[str, int | None]) -> Decision:
         return Decision(None, False, "no criterion could be scored")
     if scores.get("product") == 0:
         return Decision(total, False, "no product overlap (product score 0)")
-    if total < CUTOFF:
-        return Decision(total, False, f"score {total} below cutoff {CUTOFF}")
-    return Decision(total, True, f"score {total} meets cutoff {CUTOFF}")
+    if total < REVIEW_FLOOR:
+        return Decision(total, False, f"score {total} below review floor {REVIEW_FLOOR}")
+    if total < AUTO_CUTOFF:
+        return Decision(total, True, f"score {total} needs your review ({REVIEW_FLOOR} to {AUTO_CUTOFF - 1})", "review")
+    return Decision(total, True, f"score {total} meets auto-select cutoff {AUTO_CUTOFF}", "auto")
 
 
 def _valid_score(value: object) -> bool:

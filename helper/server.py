@@ -28,11 +28,11 @@ PAGE = """<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewp
 <body style="font-family:system-ui,sans-serif;max-width:720px;margin:2rem auto;padding:0 1rem">
 {% if message %}<h2>{{ message }}</h2>{% else %}
 <h2>Choose peers for {{ target.name or target.symbol }}</h2>
-<p>Untick any company you do not want in the comps. At least one must stay ticked.</p>
+<p>Untick any company you do not want in the comps. Companies marked "needs your review" are borderline matches and start unticked: tick the ones you want. At least one must be ticked.</p>
 <form method="post">
 {% for p in shortlist %}
-<label style="display:block;margin:.8rem 0"><input type="checkbox" name="peer" value="{{ p.profile.symbol }}" checked>
-<b>{{ p.profile.name or p.profile.symbol }}</b> ({{ p.profile.symbol }}) similarity {{ p.similarity }}<br>
+<label style="display:block;margin:.8rem 0"><input type="checkbox" name="peer" value="{{ p.profile.symbol }}"{% if p.tier != "review" %} checked{% endif %}>
+<b>{{ p.profile.name or p.profile.symbol }}</b> ({{ p.profile.symbol }}) similarity {{ p.similarity }}{% if p.tier == "review" %} <em>needs your review</em>{% endif %}<br>
 <small>{{ p.reason }}{% if p.mismatch_note %} Differences: {{ p.mismatch_note }}{% endif %}</small></label>
 {% endfor %}
 <button type="submit" style="margin-top:1rem;padding:.6rem 1.2rem">Build my comps</button></form>{% endif %}
@@ -132,7 +132,7 @@ def create_app(
                 rejected.append({"symbol": symbol, "total": decision.total, "reason": decision.reason})
                 continue
             reason = str(llm.get("reason") or llm["scores"]["product"].get("evidence") or decision.reason)
-            shortlist.append({"profile": profile, "similarity": decision.total, "reason": reason,
+            shortlist.append({"profile": profile, "similarity": decision.total, "tier": decision.tier, "reason": reason,
                               "mismatch_note": str(llm.get("mismatch_note") or "")})
         shortlist.sort(key=lambda s: s["similarity"], reverse=True)
         return jsonify({"shortlist": shortlist, "rejected": rejected})

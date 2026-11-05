@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from helper.scoring import CRITERIA, CUTOFF, BadLlmOutput, decide, validate_llm_output, weighted_total
+from helper.scoring import AUTO_CUTOFF, CRITERIA, REVIEW_FLOOR, BadLlmOutput, decide, validate_llm_output, weighted_total
 from tests.conftest import FIXTURES
 
 ORDER = ("product", "customer_channel", "business_model", "value_drivers", "operating_model", "geography_positioning")
@@ -25,7 +25,7 @@ def llm_output(**overrides):
 
 
 def test_constants_match_spec():
-    assert CUTOFF == 65
+    assert (AUTO_CUTOFF, REVIEW_FLOOR) == (70, 60)
     assert dict(CRITERIA) == {
         "product": 30, "customer_channel": 20, "business_model": 20,
         "value_drivers": 10, "operating_model": 10, "geography_positioning": 10,
@@ -52,15 +52,19 @@ def test_total_rounds_half_up():
 
 def test_product_zero_excluded_despite_high_total():
     d = decide(scores(product=0))
-    assert d.total == 70 and d.kept is False
+    assert d.total == 70 and d.kept is False and d.tier == "out"
     assert "product" in d.reason
 
 
-def test_cutoff_boundary_63_out_67_in():
-    below = decide(scores(1, 1, 3, 2, 3, 3))
-    above = decide(scores(1, 1, 3, 3, 3, 3))
-    assert (below.total, below.kept) == (63, False)
-    assert (above.total, above.kept) == (67, True)
+def test_band_edges_59_out_60_review_67_review_70_auto():
+    assert (decide(scores(1, 1, 3, 3, 1, 3)).total, decide(scores(1, 1, 3, 3, 1, 3)).tier) == (60, "review")
+    assert (decide(scores(1, 1, 3, 2, 3, 3)).total, decide(scores(1, 1, 3, 2, 3, 3)).tier) == (63, "review")
+    all_twos = decide(scores(*[2] * 6))
+    assert (all_twos.total, all_twos.tier, all_twos.kept) == (67, "review", True)
+    seventy = decide(scores(2, 2, 2, 3, 2, 2))
+    assert (seventy.total, seventy.tier, seventy.kept) == (70, "auto", True)
+    low = decide(scores(1, 2, 2, 2, 2, 2))
+    assert (low.total, low.tier, low.kept) == (57, "out", False)
 
 
 def test_unscoreable_candidate_is_not_kept():

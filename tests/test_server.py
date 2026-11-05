@@ -102,6 +102,34 @@ def test_rank_sorts_and_drops_below_cutoff(parts):
     assert body["rejected"][0]["symbol"] == "P2"
 
 
+def llm_with_scores(*values):
+    names = ["product", "customer_channel", "business_model", "value_drivers", "operating_model", "geography_positioning"]
+    return {"scores": {n: {"score": v, "evidence": "x"} for n, v in zip(names, values)}, "reason": "r", "mismatch_note": ""}
+
+
+def test_rank_tiers_auto_review_and_drops_below_floor(parts):
+    client, _, _ = parts
+    res = client.post("/rank", json={"target": {}, "scored": [
+        {"profile": profile_to_dict(PROFILES["P1"]), "llm": llm_with_scores(*[2] * 6)},          # 67 review
+        {"profile": profile_to_dict(PROFILES["P2"]), "llm": good_llm()},                          # 100 auto
+        {"profile": profile_to_dict(PROFILES["NEG"]), "llm": llm_with_scores(1, 2, 2, 2, 2, 2)},  # 57 out
+    ]})
+    body = res.get_json()
+    assert [(p["profile"]["symbol"], p["tier"]) for p in body["shortlist"]] == [("P2", "auto"), ("P1", "review")]
+    assert body["rejected"][0]["symbol"] == "NEG"
+
+
+def test_approval_page_preticks_auto_and_leaves_review_unticked(parts):
+    client, store, _ = parts
+    shortlist = [{"profile": profile_to_dict(PROFILES["P1"]), "similarity": 90, "tier": "auto", "reason": "r", "mismatch_note": ""},
+                 {"profile": profile_to_dict(PROFILES["P2"]), "similarity": 67, "tier": "review", "reason": "r", "mismatch_note": ""}]
+    out = client.post("/approvals", json={"target": profile_to_dict(PROFILES["TGT"]), "shortlist": shortlist, "email": "a@example.com"}).get_json()
+    page = client.get(f"/approve/{out['id']}").data.decode()
+    assert 'value="P1" checked' in page
+    assert 'value="P2" checked' not in page and 'value="P2"' in page
+    assert "needs your review" in page
+
+
 def test_rank_product_zero_is_rejected(parts):
     client, _, _ = parts
     res = client.post("/rank", json={"target": {}, "scored": [

@@ -19,7 +19,7 @@ from typing import Mapping, Sequence
 
 import requests
 
-from helper.scoring import CUTOFF, BadLlmOutput, validate_llm_output, weighted_total
+from helper.scoring import AUTO_CUTOFF, REVIEW_FLOOR, BadLlmOutput, validate_llm_output, weighted_total
 
 MODEL = "openai/gpt-oss-120b"
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
@@ -68,7 +68,7 @@ def spread(runs: Sequence[Run]) -> dict[str, int]:
     return out
 
 
-def crossings(runs: Sequence[Run], cutoff: int = CUTOFF) -> list[str]:
+def crossings(runs: Sequence[Run], cutoff: int = REVIEW_FLOOR) -> list[str]:
     """Names that are in (>= cutoff) in at least one run and out in at least one other."""
     result = []
     for name in sorted(set().union(*[set(r) for r in runs])):
@@ -141,7 +141,7 @@ def render_html(title: str, runs: Sequence[Run], reference: Mapping[str, str]) -
         rows.append(f"<tr><td>{html.escape(n)}</td><td>{html.escape(reference.get(n, ''))}</td>{cells}<td>{spreads.get(n, '')}</td></tr>")
     crossed = ", ".join(crossings(runs)) or "none"
     return (f"<!doctype html><meta charset='utf-8'><title>{html.escape(title)}</title>"
-            f"<h2>{html.escape(title)}</h2><p>Cutoff {CUTOFF}. Names crossing the cutoff between runs: {crossed}</p>"
+            f"<h2>{html.escape(title)}</h2><p>Review floor {REVIEW_FLOOR}, auto-select {AUTO_CUTOFF}. Names crossing the review floor between runs: {crossed}</p>"
             f"<table border=1 cellpadding=4><tr><th>ticker</th><th>reference</th>{head}<th>spread</th></tr>{''.join(rows)}</table>")
 
 
