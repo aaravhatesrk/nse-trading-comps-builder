@@ -58,3 +58,35 @@ def test_daily_limit_stops_the_run_with_a_clear_error(monkeypatch):
     monkeypatch.setattr(calibrate, "score_one", boom)
     with pytest.raises(calibrate.DailyLimitReached):
         calibrate.run_once({"symbol": "T"}, {"A": {}}, ["A"], "k")
+
+
+def test_connection_reset_is_retried_not_fatal(monkeypatch):
+    import requests
+    from calibration import calibrate
+
+    good = {"scores": {n: {"score": 3, "evidence": "same"} for n in
+                       ["product", "customer_channel", "business_model", "value_drivers",
+                        "operating_model", "geography_positioning"]}, "reason": "r", "mismatch_note": ""}
+
+    class Ok:
+        status_code = 200
+        headers = {}
+        text = ""
+
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {"choices": [{"message": {"content": json.dumps(good)}}]}
+
+    calls = []
+
+    def flaky(*a, **k):
+        calls.append(1)
+        if len(calls) == 1:
+            raise requests.exceptions.ConnectionError("reset")
+        return Ok()
+    monkeypatch.setattr(calibrate.requests, "post", flaky)
+    monkeypatch.setattr(calibrate.time, "sleep", lambda s: None)
+    assert calibrate.score_one({"symbol": "T"}, "A", {}, "k") == 100
+    assert len(calls) == 2

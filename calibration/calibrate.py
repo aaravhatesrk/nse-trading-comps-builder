@@ -92,7 +92,13 @@ def score_one(target: Mapping, symbol: str, candidate: Mapping, key: str) -> int
         ],
     }
     for attempt in range(1, MAX_ATTEMPTS + 1):
-        res = requests.post(GROQ_URL, json=body, headers={"Authorization": f"Bearer {key}"}, timeout=120)
+        try:
+            res = requests.post(GROQ_URL, json=body, headers={"Authorization": f"Bearer {key}"}, timeout=120)
+        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as exc:
+            wait = 10 * attempt
+            print(f"  network error for {symbol}, attempt {attempt}, waiting {wait}s: {type(exc).__name__}", flush=True)
+            time.sleep(wait)
+            continue
         if res.status_code == 429:
             if is_daily_limit(res.text):
                 raise DailyLimitReached(res.json()["error"]["message"])
