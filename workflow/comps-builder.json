@@ -101,8 +101,7 @@
             }
           }
         }
-      },
-      "webhookId": "0f986a37-3302-4875-b047-a98cf15ef069"
+      }
     },
     {
       "id": "1b0a4973-8455-41b3-8d6d-0ba3c98d81cf",
@@ -208,8 +207,7 @@
         "options": {
           "appendAttribution": false
         }
-      },
-      "webhookId": "be0040d0-1675-4b28-8532-3d341397a39f"
+      }
     },
     {
       "id": "45ecd8b0-ebdf-4c87-8062-ea229316bb7f",
@@ -356,8 +354,7 @@
         "options": {
           "appendAttribution": false
         }
-      },
-      "webhookId": "60d11e3c-f0f6-42e4-a6b0-e984d1301530"
+      }
     },
     {
       "id": "04f500c3-b916-42a4-b295-be19c5f14ea8",
@@ -413,8 +410,7 @@
         "options": {
           "appendAttribution": false
         }
-      },
-      "webhookId": "b2023537-2bf5-403f-82e8-f0f0856fc585"
+      }
     },
     {
       "id": "c34a538a-73db-4923-a962-235a736adbc5",
@@ -433,8 +429,7 @@
         "resumeAmount": 24,
         "resumeUnit": "hours",
         "options": {}
-      },
-      "webhookId": "d41985d8-f0d1-465e-bce9-70fa7b60350a"
+      }
     },
     {
       "id": "33b6755a-3ea1-465d-bbfe-57131e46b9d0",
@@ -574,8 +569,7 @@
             ]
           }
         }
-      },
-      "webhookId": "c78d2fba-a1d6-4408-99ea-53153309d22c"
+      }
     },
     {
       "id": "3a2ef54d-f6f0-4c8b-8c7f-fff527eaf91a",
@@ -596,8 +590,7 @@
         "options": {
           "appendAttribution": false
         }
-      },
-      "webhookId": "a42f2772-5966-4cd8-96ec-9c453b6d5eda"
+      }
     }
   ],
   "connections": {

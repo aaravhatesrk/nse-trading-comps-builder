@@ -7,3 +7,4 @@ cache/
 *.key
 .env
 scratch/
+*.progress.json

@@ -2,7 +2,7 @@
 
 Usage:
   python -m calibration.calibrate --reference calibration/marico_reference.json \
-      --profiles <profiles.json> --key-file <groq.key> --runs 2 --out calibration/marico_stability.html
+      --profiles <profiles.json> --key-file <file holding your Groq key> --runs 2 --out calibration/marico_stability.html
 
 The scorer is never told the reference list. The rubric must stay identical to the
 'Build Score Prompts' node in workflow/comps-builder.json (tests/test_calibrate.py guards this).

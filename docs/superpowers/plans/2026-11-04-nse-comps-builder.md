@@ -8,7 +8,7 @@
 
 **Tech Stack:** Python 3.11, Flask, requests, openpyxl, pytest; n8n (local); Groq `openai/gpt-oss-120b`; Gmail OAuth.
 
-**Spec:** `C:\Users\Aarav\Projects\nse-comps-builder\DESIGN.md`
+**Spec:** `DESIGN.md`
 
 ## Global Constraints
 
