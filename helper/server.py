@@ -67,6 +67,7 @@ def create_app(
     load_universe: Callable[[], list[UniverseRow]],
     fetch_profile: Callable[..., Profile | None],
     build_dir: Path,
+    load_listed: Callable[[], list[UniverseRow]] = lambda: [],
     notify_resume: Callable[[str, dict], None] = _post_resume,
     today: date | None = None,
 ) -> Flask:
@@ -97,12 +98,13 @@ def create_app(
 
         fetched, unavailable = [], []
         by_symbol = {r.symbol: r for r in universe}
+        listed = {r.symbol: r for r in load_listed()}
         cands = industry_candidates(row, universe, criteria.min_listing_years, today)
         in_industry = {c.symbol for c in cands}
-        outside = [by_symbol[s] for s in criteria.include
-                   if s in by_symbol and s not in in_industry and s != symbol and s not in criteria.exclude]
-        unknown = [Exclusion(s, "not in the Nifty Total Market list, so it cannot be included")
-                   for s in criteria.include if s not in by_symbol and s != symbol]
+        outside = [by_symbol.get(s) or listed[s] for s in criteria.include
+                   if (s in by_symbol or s in listed) and s not in in_industry and s != symbol and s not in criteria.exclude]
+        unknown = [Exclusion(s, "not listed on NSE, so it cannot be included")
+                   for s in criteria.include if s not in by_symbol and s not in listed and s != symbol]
         for cand in [*cands, *outside]:
             try:
                 profile = fetch_profile(cand.symbol, cand)
@@ -265,6 +267,7 @@ def create_app(
 
 
 def main() -> None:  # pragma: no cover - thin launcher
+    from helper.universe import load_listed as _load_listed
     from helper.universe import load_universe as _load
     from helper.yahoo import fetch_profile as _fetch
 
@@ -272,6 +275,7 @@ def main() -> None:  # pragma: no cover - thin launcher
     app = create_app(
         store=ApprovalStore(cache / "approvals"),
         load_universe=lambda: _load(cache),
+        load_listed=lambda: _load_listed(cache),
         fetch_profile=lambda symbol, row=None: _fetch(symbol, cache, row),
         build_dir=cache / "out",
     )

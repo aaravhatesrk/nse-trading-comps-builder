@@ -52,7 +52,7 @@ Then in n8n:
 3. Open the approval email, tick the peers you want, and press the button.
 4. The workbook arrives in your inbox.
 
-Ranges are optional: market cap and revenue are in rupees crore, EBITDA margin and ROCE are in percent. `Include` and `Exclude` take comma-separated tickers. Use `Include` to force a peer that the filters removed, even from another industry; it is shown for your review unless its product score is 0.
+Ranges are optional: market cap and revenue are in rupees crore, EBITDA margin and ROCE are in percent. `Include` and `Exclude` take comma-separated tickers. Use `Include` to force a peer that the filters removed, even from another industry or outside the Nifty Total Market (any NSE-listed company works); it is shown for your review unless its product score is 0.
 
 ## Known limits
 

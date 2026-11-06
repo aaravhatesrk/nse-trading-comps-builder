@@ -85,7 +85,7 @@ def test_include_forces_a_peer_from_another_industry_and_reports_unknown_tickers
     res = client.post("/screen", json={"ticker": "TGT", "overrides": {"include": ["BANK", "ZZZ"]}}).get_json()
     flags = {c["symbol"]: c.get("included", False) for c in res["candidates"]}
     assert flags["BANK"] is True and flags["P1"] is False
-    assert any(e["symbol"] == "ZZZ" and "not in the Nifty Total Market" in e["reason"] for e in res["excluded"])
+    assert any(e["symbol"] == "ZZZ" and "not listed on NSE" in e["reason"] for e in res["excluded"])
 
 
 def test_screen_unknown_ticker_is_422_with_message(parts):
@@ -333,3 +333,17 @@ def test_facts_returns_the_sheets_own_multiples_and_stats(parts):
     assert res["peers"]["P1"]["ev_ebitda"] == pytest.approx(expected, abs=0.05)
     stats = res["stats"]["ev_ebitda"]
     assert stats["min"] <= stats["median"] <= stats["max"] and stats["count"] == 2
+
+
+def test_include_accepts_any_nse_listed_symbol_outside_the_index(tmp_path):
+    listed = [UniverseRow("SMALL", "Small Paints Ltd", "", OLD)]
+    PROFILES["SMALL"] = prof("SMALL", 400)
+    try:
+        app = create_app(store=ApprovalStore(tmp_path / "a"), load_universe=lambda: UNIVERSE, fetch_profile=fake_fetch,
+                         load_listed=lambda: listed, build_dir=tmp_path / "o", today=TODAY)
+        res = app.test_client().post("/screen", json={"ticker": "TGT", "overrides": {"include": ["SMALL"]}}).get_json()
+    finally:
+        PROFILES.pop("SMALL")
+    flags = {c["symbol"]: c.get("included", False) for c in res["candidates"]}
+    assert flags.get("SMALL") is True
+    assert not any(e["symbol"] == "SMALL" for e in res["excluded"])

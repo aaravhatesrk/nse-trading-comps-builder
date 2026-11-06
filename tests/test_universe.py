@@ -43,3 +43,10 @@ def test_second_call_uses_cache(tmp_path):
     load_universe(tmp_path, fetch_text=_fetcher(calls))
     assert first == 2
     assert len(calls) == first
+
+
+def test_load_listed_returns_every_equity_with_no_industry(tmp_path):
+    from helper.universe import load_listed
+    csv_text = "SYMBOL,NAME OF COMPANY, SERIES,DATE OF LISTING\nSIRCA,Sirca Paints India Limited,EQ,01-Jan-2020\n"
+    rows = load_listed(tmp_path, fetch_text=lambda url: csv_text)
+    assert [(r.symbol, r.name, r.industry) for r in rows] == [("SIRCA", "Sirca Paints India Limited", "")]

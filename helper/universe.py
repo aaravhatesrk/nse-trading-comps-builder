@@ -57,3 +57,13 @@ def load_universe(cache_dir: Path, fetch_text: Callable[[str], str] | None = Non
         for r in market
         if r.get("Symbol")
     ]
+
+
+def load_listed(cache_dir: Path, fetch_text: Callable[[str], str] | None = None) -> list[UniverseRow]:
+    """Every NSE equity (no industry tag). Used only so Include can reach companies outside the index."""
+    fetch_text = fetch_text or _http_text
+    return [
+        UniverseRow(r["SYMBOL"], r.get("NAME OF COMPANY", ""), "", _parse_date(r.get("DATE OF LISTING", "")))
+        for r in _rows(_cached_text(cache_dir, "equity_l", EQUITY_URL, fetch_text))
+        if r.get("SYMBOL")
+    ]
