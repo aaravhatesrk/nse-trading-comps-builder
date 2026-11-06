@@ -347,3 +347,24 @@ def test_include_accepts_any_nse_listed_symbol_outside_the_index(tmp_path):
     flags = {c["symbol"]: c.get("included", False) for c in res["candidates"]}
     assert flags.get("SMALL") is True
     assert not any(e["symbol"] == "SMALL" for e in res["excluded"])
+
+
+def test_groq_route_forwards_the_callers_auth_header_and_caches(tmp_path):
+    import json as _json
+    from helper.score_proxy import GroqReply
+    seen = []
+    scores = {n: {"score": 3, "evidence": "e"} for n in ("product", "customer_channel", "business_model",
+                                                          "value_drivers", "operating_model", "geography_positioning")}
+    body = {"choices": [{"message": {"content": _json.dumps({"scores": scores, "reason": "r", "mismatch_note": ""})}}]}
+
+    def upstream(payload, auth):
+        seen.append(auth)
+        return GroqReply(200, body)
+
+    app = create_app(store=ApprovalStore(tmp_path / "a"), load_universe=lambda: UNIVERSE, fetch_profile=fake_fetch,
+                     build_dir=tmp_path / "o", groq_upstream=upstream, score_cache_dir=tmp_path / "c")
+    client = app.test_client()
+    first = client.post("/groq/chat/completions", json={"messages": []}, headers={"Authorization": "Bearer abc"})
+    second = client.post("/groq/chat/completions", json={"messages": []}, headers={"Authorization": "Bearer abc"})
+    assert first.status_code == 200 and first.get_json() == second.get_json() == body
+    assert seen == ["Bearer abc"]

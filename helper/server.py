@@ -15,6 +15,7 @@ from helper.models import (Commentary, Criteria, Exclusion, PeerRow, Profile, So
 from helper.screen import (UnsupportedTarget, apply_filters, auto_criteria, check_target_supported,
                            industry_candidates, normalize_ticker, size_review_candidates)
 from helper.scoring import BadLlmOutput, decide, validate_llm_output
+from helper.score_proxy import GroqReply, ScoreProxy
 from helper.stats import quartiles
 from helper.store import ApprovalStore
 
@@ -62,20 +63,44 @@ def _post_resume(url: str, data: dict) -> None:
     requests.post(url, json=data, timeout=10).raise_for_status()
 
 
+GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
+
+
+def _groq_upstream(payload: dict, auth: str) -> GroqReply:
+    try:
+        resp = requests.post(GROQ_URL, json=payload, headers={"Authorization": auth}, timeout=120)
+        return GroqReply(resp.status_code, resp.json())
+    except (requests.RequestException, ValueError) as exc:
+        return GroqReply(502, {"error": {"message": f"could not reach Groq: {exc}"}})
+
+
 def create_app(
     store: ApprovalStore,
     load_universe: Callable[[], list[UniverseRow]],
     fetch_profile: Callable[..., Profile | None],
     build_dir: Path,
     load_listed: Callable[[], list[UniverseRow]] = lambda: [],
+    groq_upstream: Callable[[dict, str], GroqReply] | None = None,
+    score_cache_dir: Path | None = None,
     notify_resume: Callable[[str, dict], None] = _post_resume,
     today: date | None = None,
 ) -> Flask:
     app = Flask(__name__)
     build_dir = Path(build_dir).resolve()
+    auth_holder = {"value": ""}
+    upstream = groq_upstream or _groq_upstream
+    proxy = ScoreProxy(lambda payload: upstream(payload, auth_holder["value"]),
+                       Path(score_cache_dir) if score_cache_dir else build_dir.parent, (today or date.today()).isoformat())
 
     def error(message: str, status: int):
         return jsonify({"error": message}), status
+
+    @app.post("/groq/chat/completions")
+    def groq_chat():
+        """Stands in for Groq's endpoint so scores are cached, steadied and paced. The key stays in n8n."""
+        auth_holder["value"] = request.headers.get("Authorization", "")
+        reply = proxy.score(request.get_json(silent=True) or {})
+        return jsonify(reply.body), reply.status
 
     @app.post("/screen")
     def screen():
