@@ -133,3 +133,20 @@ def test_trimmed_outlier_is_excluded_from_statistics_and_listed(tmp_path):
 def test_basis_label_says_trailing_twelve_months_not_fiscal_year(wb):
     text = " ".join(str(c.value) for ws in wb.worksheets for row in ws.iter_rows() for c in row if c.value)
     assert "trailing twelve months" in text and "fiscal year ended" not in text
+
+
+def test_football_field_target_inputs_use_consistent_number_formats(wb):
+    ws = wb["Football Field"]
+    two_dp, whole = "#,##0.00", "#,##0"
+    assert [ws[f"B{r}"].number_format for r in (11, 16, 17)] == [two_dp] * 3  # price, EPS, book value per share
+    assert [ws[f"B{r}"].number_format for r in (12, 13, 14, 15)] == [whole] * 4  # EBITDA, revenue, net debt, shares
+
+
+def test_football_field_has_median_upside_row_and_column(wb):
+    ws = wb["Football Field"]
+    assert "Upside" in ws["G4"].value
+    assert ws["A9"].value.startswith("Median value")
+    assert ws["C9"].value == '=IFERROR(MEDIAN(C5:C8),"n/a")'
+    for r in range(5, 10):
+        assert ws[f"G{r}"].value == f'=IFERROR(C{r}/$B$11-1,"n/a")'
+        assert ws[f"G{r}"].number_format == "0.0%;[Red]-0.0%"

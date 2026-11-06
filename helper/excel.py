@@ -155,7 +155,8 @@ def _write_football_field(ws: Worksheet, target: Profile, n_peers: int) -> None:
     rows, t = stats_rows(n_peers), target_row(n_peers)
     ws["A1"], ws["A1"].font = "Football field: implied value per share (₹)", Font(bold=True, size=14)
     ws["A2"] = "Implied price from the 25th, 50th and 75th percentile of peer multiples. EV multiples are bridged with net debt and shares."
-    for col, title in zip("ABCDEF", ("Multiple", "Low (25th pct)", "Median", "High (75th pct)", "Range (high - low)", "Current price")):
+    for col, title in zip("ABCDEFG", ("Multiple", "Low (25th pct)", "Median", "High (75th pct)", "Range (high - low)", "Current price",
+                                       "Upside / (downside) at median")):
         c = ws[f"{col}4"]
         c.value, c.font, c.fill = title, _HEADER_FONT, _HEADER_FILL
     inputs = {  # label, row, formula or value
@@ -171,6 +172,7 @@ def _write_football_field(ws: Worksheet, target: Profile, n_peers: int) -> None:
     for row, (label, value) in inputs.items():
         ws[f"A{row}"], ws[f"B{row}"] = label, value
         ws[f"B{row}"].font = _BLUE if row == 15 else _BLACK
+        ws[f"B{row}"].number_format = "#,##0.00" if row in (11, 16, 17) else "#,##0"
     bridge = lambda s, metric: f'IFERROR(IF(({s}*{metric}-$B$14)>0,({s}*{metric}-$B$14)*{_CRORE_TO_RUPEES}/$B$15,"{NA}"),"{NA}")'
     per_share = lambda s, base: f'IFERROR(IF({base}>0,{base}*{s},"{NA}"),"{NA}")'
     implied = {
@@ -187,6 +189,16 @@ def _write_football_field(ws: Worksheet, target: Profile, n_peers: int) -> None:
         for col in "BCDEF":
             ws[f"{col}{r}"].number_format = "#,##0.00"
             ws[f"{col}{r}"].font = _BLACK
+    ws["A9"], ws["A9"].font = "Median value (middle of the four multiples)", Font(bold=True)
+    for col in "BCD":
+        ws[f"{col}9"] = f'=IFERROR(MEDIAN({col}5:{col}8),"{NA}")'
+    ws["E9"], ws["F9"] = f'=IFERROR(D9-B9,"{NA}")', "=$B$11"
+    for col in "BCDEF":
+        ws[f"{col}9"].number_format, ws[f"{col}9"].font = "#,##0.00", Font(bold=True)
+    for r in range(5, 10):
+        c = ws[f"G{r}"]
+        c.value, c.number_format = f'=IFERROR(C{r}/$B$11-1,"{NA}")', "0.0%;[Red]-0.0%"
+        c.font = Font(bold=(r == 9))
     chart = BarChart()
     chart.type, chart.grouping, chart.overlap = "bar", "stacked", 100
     price_text = "n/a" if target.price is None else f"{target.price:,.2f}"
@@ -204,6 +216,10 @@ def _write_football_field(ws: Worksheet, target: Profile, n_peers: int) -> None:
     ws.column_dimensions["A"].width = 28
     for col in "BCDEF":
         ws.column_dimensions[col].width = 16
+    ws.column_dimensions["G"].width = 22
+    ws.row_dimensions[4].height = 32
+    for col in "ABCDEFG":
+        ws[f"{col}4"].alignment = Alignment(wrap_text=True, vertical="center")
 
 
 def _write_commentary(ws: Worksheet, peers: list[PeerRow], commentary: Commentary) -> None:
