@@ -42,8 +42,11 @@ Then in n8n:
 1. **Import** `workflow/comps-builder.json` (Workflows, then Import from file).
 2. **Create credentials**: a *Groq* credential with your API key, and a *Gmail OAuth2* credential.
 3. **Attach them**: open the two Groq nodes (`Score Similarity With Groq`, `Write Commentary With Groq`) and the five Gmail nodes (the ones starting `Email ...`) and pick your credentials. n8n shows missing credentials in red.
-4. **Publish** the workflow. The approval step waits for your click, and that only works on a published workflow.
-5. Open the `Comps Request Form` node and copy its **Production URL**. It should look like `http://localhost:5678/form/nse-comps`.
+4. Open the `Email Run Failed` node and replace `YOUR_EMAIL_HERE` with your own address. It emails you if a run crashes.
+5. **Publish** the workflow. The approval step waits for your click, and that only works on a published workflow.
+6. Open the `Comps Request Form` node and copy its **Production URL**. It should look like `http://localhost:5678/form/nse-comps`.
+
+**Optional, Windows:** run `start_helper.ps1` at logon so the helper is always up (Task Scheduler, trigger "At log on", action `powershell -File <path>\start_helper.ps1`).
 
 ## Run it
 
@@ -59,7 +62,7 @@ Ranges are optional: market cap and revenue are in rupees crore, EBITDA margin a
 - **Local only.** The form and the approval link are `localhost` addresses. The whole flow works on the machine running n8n and the helper, and nowhere else.
 - **Yahoo Finance data is unofficial.** The helper uses Yahoo's unofficial endpoints. They can change or break without notice, some fields are missing for some companies, and figures may be delayed. A missing field makes a company fail a filter that needs it (the reason is listed on the Sources sheet).
 - **Banks and NBFCs are refused.** EV/EBITDA is not meaningful for them. A target with missing or negative EBITDA is refused too.
-- **AI scores vary between runs.** Even at temperature 0, scores for the same pair can move by 10 to 25 points for some peers. That is why 60 to 69 goes to you for review instead of being decided automatically.
+- **AI scores vary between runs.** Even at temperature 0, single scores for the same pair can move by 10 to 25 points for some peers. The helper now asks twice more about borderline peers (first score 55 to 75) and keeps the median reply, caches answers for the day, and re-sends one malformed reply. Scores in 60 to 69 still go to you for review.
 - **Auto filters can remove real peers.** For Marico, Emami (too small) and Colgate-Palmolive (EBITDA margin too high) never reach scoring. Type them in `Include` if you want them.
 - **Groq free-tier limits.** About 200,000 tokens per day. A run of 40 candidates uses roughly 80,000.
 - **Approval links expire after 24 hours.**

@@ -234,7 +234,7 @@
       ],
       "parameters": {
         "method": "POST",
-        "url": "https://api.groq.com/openai/v1/chat/completions",
+        "url": "http://127.0.0.1:5057/groq/chat/completions",
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "groqApi",
         "sendBody": true,
@@ -245,10 +245,10 @@
           "batching": {
             "batch": {
               "batchSize": 1,
-              "batchInterval": 20000
+              "batchInterval": 0
             }
           },
-          "timeout": 120000
+          "timeout": 600000
         }
       },
       "retryOnFail": true,
@@ -632,6 +632,38 @@
         "mode": "runOnceForAllItems",
         "jsCode": "const f = $input.first().json;\nconst target = $('Check Screen').first().json.target;\nconst chosen = $('Build Facts Request').first().json.chosen;\nconst peers = $('Rank Peers').first().json.shortlist.filter((p) => chosen.includes(p.profile.symbol));\nconst data = {\n  target: { symbol: target.symbol, name: target.name, ...f.target },\n  peers: peers.map((p) => ({ symbol: p.profile.symbol, name: p.profile.name, similarity: p.similarity, ...f.peers[p.profile.symbol] })),\n  peer_statistics_used_in_sheet: f.stats,\n  outliers_removed_from_statistics: f.trimmed\n};\nconst system = [\n  'You write short valuation commentary for an investment banking trading comps sheet.',\n  'Use ONLY the numbers provided. Never invent or recompute figures. If a value is null, say it is not available.',\n  'When you describe the peer range or typical level, quote peer_statistics_used_in_sheet (min, median, max) exactly. Do not make up ranges.',\n  'Return ONLY JSON: {\"summary\":\"2 to 3 sentences on how the target trades versus the peer set\",\"per_peer\":{\"SYMBOL\":\"one sentence on that peer\"}}',\n  'Include every peer symbol in per_peer. Plain text, no markdown.'\n].join('\\n');\nreturn [{ json: { chosen, payload: { model: 'openai/gpt-oss-120b', temperature: 0, response_format: { type: 'json_object' }, messages: [{ role: 'system', content: system }, { role: 'user', content: JSON.stringify(data) }] } } }];"
       }
+    },
+    {
+      "parameters": {},
+      "id": "error-trigger-0001",
+      "name": "On Workflow Error",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        896,
+        640
+      ]
+    },
+    {
+      "id": "email-run-failed-0001",
+      "name": "Email Run Failed",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1120,
+        640
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "sendTo": "YOUR_EMAIL_HERE",
+        "subject": "=NSE comps run failed at {{ $json.execution.lastNodeExecuted }}",
+        "emailType": "text",
+        "message": "=The workflow \"{{ $json.workflow.name }}\" stopped at the node \"{{ $json.execution.lastNodeExecuted }}\".\n\nError: {{ $json.execution.error.message }}\n\nCheck that the helper is running (python -m helper.server) and that n8n can reach it, then run the form again.\nExecution: {{ $json.execution.url }}",
+        "options": {
+          "appendAttribution": false
+        }
+      }
     }
   ],
   "connections": {
@@ -892,6 +924,17 @@
         [
           {
             "node": "Write Commentary With Groq",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "On Workflow Error": {
+      "main": [
+        [
+          {
+            "node": "Email Run Failed",
             "type": "main",
             "index": 0
           }
