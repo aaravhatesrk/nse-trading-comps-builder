@@ -247,7 +247,7 @@
           "batching": {
             "batch": {
               "batchSize": 1,
-              "batchInterval": 1500
+              "batchInterval": 20000
             }
           },
           "timeout": 120000

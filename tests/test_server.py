@@ -65,6 +65,21 @@ def test_screen_returns_candidates_and_exclusions(parts):
     assert body["criteria_lines"]
 
 
+def test_screen_flags_smaller_peers_for_review_in_auto_mode_only(parts):
+    client, _, _ = parts
+    UNIVERSE.append(UniverseRow("SMALL", "Small Co", "FMCG", OLD))
+    PROFILES["SMALL"] = prof("SMALL", 3000.0, ebitda=300.0)   # 0.3x the target
+    try:
+        auto = client.post("/screen", json={"ticker": "TGT"}).get_json()
+        manual = client.post("/screen", json={"ticker": "TGT", "overrides": {"market_cap_cr": [8000, 20000]}}).get_json()
+    finally:
+        UNIVERSE.pop()
+        PROFILES.pop("SMALL")
+    flags = {c["symbol"]: c.get("size_review", False) for c in auto["candidates"]}
+    assert flags == {"P1": False, "P2": False, "SMALL": True}
+    assert "SMALL" not in {c["symbol"] for c in manual["candidates"]}
+
+
 def test_screen_unknown_ticker_is_422_with_message(parts):
     res = parts[0].post("/screen", json={"ticker": "NOPE"})
     assert res.status_code == 422 and "Nifty Total Market" in res.get_json()["error"]
@@ -128,6 +143,14 @@ def test_approval_page_preticks_auto_and_leaves_review_unticked(parts):
     assert 'value="P1" checked' in page
     assert 'value="P2" checked' not in page and 'value="P2"' in page
     assert "needs your review" in page
+
+
+def test_rank_size_review_peer_never_auto_selects_even_with_a_perfect_score(parts):
+    client, _, _ = parts
+    small = profile_to_dict(PROFILES["P1"]) | {"size_review": True}
+    res = client.post("/rank", json={"target": {}, "scored": [{"profile": small, "llm": good_llm()}]})
+    item = res.get_json()["shortlist"][0]
+    assert (item["similarity"], item["tier"]) == (100, "review")
 
 
 def test_rank_product_zero_is_rejected(parts):

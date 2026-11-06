@@ -1,6 +1,7 @@
 """Peer screening: ticker normalising, Auto criteria, and filter application."""
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import date
 from typing import Any, Iterable, Mapping, Sequence
 
@@ -19,6 +20,7 @@ _RANGE_CRITERIA = (
 _SCALAR_KEYS = ("max_net_debt_ebitda", "min_daily_value_cr", "min_listing_years")
 _LIST_KEYS = ("include", "exclude")
 _DAYS_PER_YEAR = 365.25
+REVIEW_SIZE_FLOOR = 0.15  # Auto only: peers from 0.15x up to the normal 0.5x are scored but always need the user's review
 
 
 class UnsupportedTarget(ValueError):
@@ -181,3 +183,16 @@ def apply_filters(
             kept_by_symbol[p.symbol] = p
     kept = tuple(p for p in candidates if p.symbol in kept_by_symbol or (p.symbol in forced and p.symbol != target.symbol))
     return ScreenResult(kept=kept, excluded=tuple(excluded), dropped_criteria=tuple(dropped))
+
+
+def size_review_candidates(
+    target: Profile, candidates: Sequence[Profile], criteria: Criteria, today: date | None = None,
+    user_set_market_cap: bool = False,
+) -> list[Profile]:
+    """Peers too small for the normal market-cap band but passing every other filter. Auto mode only."""
+    band = criteria.market_cap_cr
+    if user_set_market_cap or target.market_cap_cr is None or band.lo is None:
+        return []
+    normal = {p.symbol for p in apply_filters(target, candidates, criteria, today).kept}
+    wider = replace(criteria, market_cap_cr=Range(target.market_cap_cr * REVIEW_SIZE_FLOOR, band.hi))
+    return [p for p in apply_filters(target, candidates, wider, today).kept if p.symbol not in normal]

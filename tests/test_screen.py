@@ -10,6 +10,7 @@ from helper.screen import (
     check_target_supported,
     industry_candidates,
     normalize_ticker,
+    size_review_candidates,
 )
 
 TODAY = date(2026, 11, 4)
@@ -163,3 +164,24 @@ def test_range_helpers():
     r = Range(1.0, 3.0)
     assert r.is_active and r.contains(2.0) and not r.contains(4.0)
     assert Range(None, 5.0).contains(-100.0) and not Range().is_active
+
+
+def test_size_review_returns_smaller_peers_between_015x_and_half_x():
+    small = prof("EMAMILTD", market_cap_cr=30000.0)    # 0.3x of 100000
+    tiny = prof("MICRO", market_cap_cr=10000.0)        # 0.1x: too small even for review
+    in_band = prof("DABUR", market_cap_cr=80000.0)     # already passes the normal band
+    criteria = auto_criteria(TARGET, {})
+    got = size_review_candidates(TARGET, [small, tiny, in_band], criteria, today=TODAY)
+    assert [p.symbol for p in got] == ["EMAMILTD"]
+
+
+def test_size_review_still_applies_the_other_filters():
+    thin = prof("THIN", market_cap_cr=30000.0, ebitda_margin=0.01)
+    criteria = auto_criteria(TARGET, {})
+    assert size_review_candidates(TARGET, [thin], criteria, today=TODAY) == []
+
+
+def test_size_review_is_off_when_the_user_set_a_market_cap_range():
+    small = prof("EMAMILTD", market_cap_cr=30000.0)
+    criteria = auto_criteria(TARGET, {"market_cap_cr": (50000, 500000)})
+    assert size_review_candidates(TARGET, [small], criteria, today=TODAY, user_set_market_cap=True) == []

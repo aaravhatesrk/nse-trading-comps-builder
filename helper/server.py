@@ -13,7 +13,7 @@ from helper import excel
 from helper.models import (Commentary, Criteria, Exclusion, PeerRow, Profile, SourcesInfo,
                            UniverseRow, profile_from_dict, profile_to_dict)
 from helper.screen import (UnsupportedTarget, apply_filters, auto_criteria, check_target_supported,
-                           industry_candidates, normalize_ticker)
+                           industry_candidates, normalize_ticker, size_review_candidates)
 from helper.scoring import BadLlmOutput, decide, validate_llm_output
 from helper.store import ApprovalStore
 
@@ -32,7 +32,7 @@ PAGE = """<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewp
 <form method="post">
 {% for p in shortlist %}
 <label style="display:block;margin:.8rem 0"><input type="checkbox" name="peer" value="{{ p.profile.symbol }}"{% if p.tier != "review" %} checked{% endif %}>
-<b>{{ p.profile.name or p.profile.symbol }}</b> ({{ p.profile.symbol }}) similarity {{ p.similarity }}{% if p.tier == "review" %} <em>needs your review</em>{% endif %}<br>
+<b>{{ p.profile.name or p.profile.symbol }}</b> ({{ p.profile.symbol }}) similarity {{ p.similarity }}{% if p.tier == "review" %} <em>needs your review{% if p.profile.size_review %} (smaller than the usual size range){% endif %}</em>{% endif %}<br>
 <small>{{ p.reason }}{% if p.mismatch_note %} Differences: {{ p.mismatch_note }}{% endif %}</small></label>
 {% endfor %}
 <button type="submit" style="margin-top:1rem;padding:.6rem 1.2rem">Build my comps</button></form>{% endif %}
@@ -106,10 +106,13 @@ def create_app(
             else:
                 fetched.append(profile)
         result = apply_filters(target, fetched, criteria, today)
-        excluded = [*result.excluded, *unavailable]
+        small = size_review_candidates(target, fetched, criteria, today, "market_cap_cr" in (body.get("overrides") or {}))
+        small_symbols = {p.symbol for p in small}
+        candidates = [profile_to_dict(p) for p in result.kept] + [profile_to_dict(p) | {"size_review": True} for p in small]
+        excluded = [*(e for e in result.excluded if e.symbol not in small_symbols), *unavailable]
         return jsonify({
             "target": profile_to_dict(target),
-            "candidates": [profile_to_dict(p) for p in result.kept],
+            "candidates": candidates,
             "excluded": [{"symbol": e.symbol, "reason": e.reason} for e in excluded],
             "dropped_criteria": list(result.dropped_criteria),
             "criteria_lines": _criteria_lines(criteria),
@@ -131,8 +134,9 @@ def create_app(
             if not decision.kept:
                 rejected.append({"symbol": symbol, "total": decision.total, "reason": decision.reason})
                 continue
+            tier = "review" if profile.get("size_review") and decision.tier == "auto" else decision.tier
             reason = str(llm.get("reason") or llm["scores"]["product"].get("evidence") or decision.reason)
-            shortlist.append({"profile": profile, "similarity": decision.total, "tier": decision.tier, "reason": reason,
+            shortlist.append({"profile": profile, "similarity": decision.total, "tier": tier, "reason": reason,
                               "mismatch_note": str(llm.get("mismatch_note") or "")})
         shortlist.sort(key=lambda s: s["similarity"], reverse=True)
         return jsonify({"shortlist": shortlist, "rejected": rejected})
