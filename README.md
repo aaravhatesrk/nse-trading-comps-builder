@@ -43,7 +43,7 @@ Then in n8n:
 2. **Create credentials**: a *Groq* credential with your API key, and a *Gmail OAuth2* credential.
 3. **Attach them**: open the two Groq nodes (`Score Similarity With Groq`, `Write Commentary With Groq`) and the five Gmail nodes (the ones starting `Email ...`) and pick your credentials. n8n shows missing credentials in red.
 4. **Publish** the workflow. The approval step waits for your click, and that only works on a published workflow.
-5. Open the `Comps Request Form` node and copy its **Production URL**.
+5. Open the `Comps Request Form` node and copy its **Production URL**. It should look like `http://localhost:5678/form/nse-comps`.
 
 ## Run it
 
