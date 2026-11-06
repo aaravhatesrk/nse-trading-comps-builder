@@ -73,7 +73,7 @@ README.md, requirements.txt, LICENSE
 
 **Interfaces:** `roce(ebit: float | None, total_assets: float | None, current_liabilities: float | None) -> float | None`; `revenue_cagr(revenues_newest_first: list[float | None], years: int = 3) -> float | None`; `net_debt_to_ebitda(debt, cash, ebitda) -> float | None`. `fetch_profile` (Task 1) calls these to fill `roce`, `revenue_cagr_3y`.
 
-- [ ] **Step 1: Spike (throwaway)**: confirm the balance sheet and income statement module fields exist for MARICO, EMAMILTD and DABUR (EBIT, total assets, current liabilities, 4 years of revenue). Record which are missing in `calibration/data_notes.md`. If ROCE inputs are mostly unavailable, stop and escalate to Aarav before continuing (spec says drop the criterion with a notice).
+- [ ] **Step 1: Spike (throwaway)**: confirm the balance sheet and income statement module fields exist for MARICO, EMAMILTD and DABUR (EBIT, total assets, current liabilities, 4 years of revenue). Record which are missing in `calibration/data_notes.md`. If ROCE inputs are mostly unavailable, stop and escalate to the author before continuing (spec says drop the criterion with a notice).
 - [ ] **Step 2: Write failing tests** `test_roce_basic` (EBIT 100, assets 1000, current liabilities 200 gives 0.125), `test_roce_none_when_input_missing`, `test_cagr_three_years` (revenue 100, 110, 121, 133.1 newest first reversed correctly gives 0.10), `test_cagr_none_when_fewer_than_four_values`, `test_net_debt_negative_when_net_cash`, `test_zero_or_negative_ebitda_returns_none`.
 - [ ] **Step 3: Run, expect FAIL. Implement. Run, expect PASS.** Wire into `fetch_profile`; re-run Task 1 tests.
 - [ ] **Step 4: Commit** `feat(metrics): ROCE, CAGR and leverage helpers`.
@@ -141,12 +141,12 @@ README.md, requirements.txt, LICENSE
 
 **Files:** Create `workflow/comps-builder.json` (exported); n8n workflow built through the n8n MCP.
 
-**Prerequisite:** n8n MCP reachable (it failed with ECONNREFUSED on 2026-11-04). Helper running on `localhost`. Groq and Gmail credentials created in n8n by Aarav.
+**Prerequisite:** n8n MCP reachable (it failed with ECONNREFUSED on 2026-11-04). Helper running on `localhost`. Groq and Gmail credentials created in n8n by the author.
 
 **Flow:** Form Trigger (ticker, email, per-criterion Auto/min/max, include, exclude) → HTTP `/screen` → IF error, email the message → Loop over candidates → Groq (rubric prompt from `calibration/calibrate.py`, JSON output, temperature 0) → HTTP `/rank` → IF fewer than 3 shortlisted, email explanation → HTTP `/approvals` → email with approval link → Wait for resume → Groq commentary (numbers passed in, prose only) → HTTP `/build` → Gmail with attachment. Required structured-output fields all required with placeholder defaults (your n8n notes: optional fields break Groq tool-calling). Space adjacent closing braces in expressions. Call `publish_workflow` after every update.
 
 - [ ] **Step 1: Spike the Wait/resume on localhost.** Build a two-node test (Wait → Gmail). If the resume URL does not work without a tunnel, switch to the fallback in Global Constraints and record the decision in `DESIGN.md`.
-- [ ] **Step 2: Build the workflow** node by node; run it with the form for MARICO and Aarav's own email.
+- [ ] **Step 2: Build the workflow** node by node; run it with the form for MARICO and the author's own email.
 - [ ] **Step 3: Verify end to end**: the email arrives, the approval page loads from the email link, approving builds the file, the final email attaches an Excel that opens with live formulas and a football field. Test the exact link a recipient would click.
 - [ ] **Step 4: Verify the failure paths**: unknown ticker, a bank, too few peers, expired link, double submit. Each ends in a clear email or page.
 - [ ] **Step 5: Commit** the exported JSON: `feat(workflow): n8n comps builder`.
@@ -155,10 +155,10 @@ README.md, requirements.txt, LICENSE
 
 **Files:** Create `calibration/calibrate.py` (generalises the spike: target, reference file, runs, writes HTML), `calibration/marico_reference.json`, `calibration/second_target.json`.
 
-- [ ] **Step 1: Stability**: run the scoring for MARICO twice more with identical settings. Report each reference name's score spread. Pass if no reference name crosses 65 between runs; otherwise report to Aarav before changing anything.
-- [ ] **Step 2: Second sector**: Aarav and Claude agree a core, borderline and out reference list for a non-FMCG target (for example an IT services company) before running. Run blind; report where the list lands.
+- [ ] **Step 1: Stability**: run the scoring for MARICO twice more with identical settings. Report each reference name's score spread. Pass if no reference name crosses 65 between runs; otherwise report to the author before changing anything.
+- [ ] **Step 2: Second sector**: the author and Claude agree a core, borderline and out reference list for a non-FMCG target (for example an IT services company) before running. Run blind; report where the list lands.
 - [ ] **Step 3: Acceptance check** on the full workflow output for MARICO: shortlist includes most of DABUR, GODREJCP, EMAMILTD, COLPAL (design acceptance list) after numeric filters, and excludes unrelated industries. Report honestly if it does not.
-- [ ] **Step 4: Decide with Aarav** whether to change the cut-off or weights based on steps 1 to 3; record the decision in `DESIGN.md`. Delete `groq.key` from the scratchpad.
+- [ ] **Step 4: Decide with the author** whether to change the cut-off or weights based on steps 1 to 3; record the decision in `DESIGN.md`. Delete `groq.key` from the scratchpad.
 - [ ] **Step 5: Commit** `test(calibration): stability and second-sector runs`.
 
 ### Task 10: Open-source packaging

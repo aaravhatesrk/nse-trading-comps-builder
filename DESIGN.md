@@ -4,7 +4,7 @@ Date: 2026-11-04. Status: draft for approval. Nothing is built yet.
 
 ## Intent and why
 
-Aarav wants a finance n8n workflow he can show on LinkedIn as a portfolio project aimed at investment banking (IB) credibility. It must be reasonably useful, run on free data and free APIs only, and be more substantial than a news summariser. The chosen task is the trading comparables ("comps") analysis, the most common IB analyst task, for Indian listed companies (NSE).
+The author wants a finance n8n workflow they can show on LinkedIn as a portfolio project aimed at investment banking (IB) credibility. It must be reasonably useful, run on free data and free APIs only, and be more substantial than a news summariser. The chosen task is the trading comparables ("comps") analysis, the most common IB analyst task, for Indian listed companies (NSE).
 
 Success: an IB reviewer opens the Excel file, clicks into cells, sees live formulas, sensible peers with stated reasons, and a football field chart. The workflow and helper are open-sourced on GitHub and demoed in a LinkedIn post.
 
@@ -23,7 +23,7 @@ Success: an IB reviewer opens the Excel file, clicks into cells, sees live formu
 - US or other markets. India (NSE) only.
 - Precedent transactions, DCF, merger models.
 - Revenue mix and capital intensity filters (data too patchy for free sources).
-- Hosting or a public service. It runs on Aarav's PC.
+- Hosting or a public service. It runs on the author's PC.
 
 ## Anti-goals (failure even if it technically runs)
 
@@ -47,7 +47,7 @@ Success: an IB reviewer opens the Excel file, clicks into cells, sees live formu
 - Yahoo endpoints are unofficial and may change. Mitigation: isolate all Yahoo calls in the helper, cache results per day, fail loudly.
 - Not yet tested: balance sheet modules (needed for ROCE), P/B and average volume fields, insider holding field, rate limits across 50 to 150 tickers.
 
-## Decisions made by Aarav
+## Decisions made by the author
 
 Screening criteria (each editable on the form, "Auto" uses these defaults):
 
@@ -109,26 +109,26 @@ Other decisions:
 - Acceptance check: for MARICO, the shortlist should include most of Dabur, Godrej Consumer, Emami and Colgate-Palmolive India, and exclude unrelated industries.
 - Form: ticker entered as plain NSE symbol (MARICO, no .NS); each range is min and max in rupees crore or percent; a target outside the Nifty Total Market list is refused with a clear message. Banks and NBFCs are refused with a message (EV/EBITDA is not meaningful for them).
 
-## AI similarity scoring (Aarav asked to define the criteria)
+## AI similarity scoring (the author asked to define the criteria)
 
 - The AI scores each candidate against a rubric, 0 to 3 per criterion, or "unknown" if the business summary does not say (unknown is not zero; its weight is shared across the others). Every score needs a one-line evidence quote. Python computes the weighted total; the AI never does.
 - Criteria and starting weights (my guess, to be tuned): product/category overlap 30, customer and channel 20, business model and revenue mix 20, value drivers and cyclicality 10, operating model 10, geography and positioning 10.
 - Product overlap score of 0 always excludes the candidate, however well the others match.
 - For a company that matches on most criteria but differs on one, the AI must name the mismatch and say whether it likely affects the multiple.
 - Input text: Yahoo business summary (field availability to be confirmed before the build).
-- Cut-off (Aarav's decision, revised 2026-11-05, replaces the single 65 cut-off): three bands on the weighted total. 70 or more is pre-ticked on the approval page; 60 to 69 is shown unticked, marked "needs your review", for the user to decide; below 60 is dropped. The product gate (product score 0 is always excluded) still applies. Why: two blind Marico passes at identical settings (calibration/marico_stability.html) moved HINDUNILVR 83 to 60 and NESTLEIND 67 to 54, so a single hard cut-off at 65 silently lost or admitted peers by chance. Scoring all six criteria 2 gives exactly 67, which sat just above the old cut-off, so one criterion slipping a level pushed a good peer out. Size rule (Aarav's decision, 2026-11-06): in Auto mode the market-cap band stays 0.5x to 5x of the target, but peers from 0.15x up to 0.5x that pass every other filter are also scored, and are always shown as "needs your review" (unticked), never pre-ticked, even with a score of 70 or more. If the user sets a market-cap range themselves, no such extension applies. Why: the 0.5x floor removed real Marico peers (EMAMILTD, COLPAL, BAJAJCON, JYOTHYLAB). Pacing (fixed 2026-11-06): the Groq scoring node now waits 20 s between calls; at 1.5 s it exceeded Groq's 8,000 tokens per minute and 5 of 9 peers came back unscored without warning. Known limit: a peer that scores below 60 on an unlucky pass is still hidden (COLPAL scores 57 in both runs). Aarav chose a floor of 60 over 55 knowingly.
-- This was calibrated on one target and one blind run (Groq openai/gpt-oss-120b, temperature 0; results in calibration/marico_scores_run1.html). Marico reference list agreed with Aarav: core DABUR, GODREJCP, EMAMILTD, BAJAJCON; borderline HINDUNILVR, COLPAL, JYOTHYLAB, TATACONSUM; out NESTLEIND, BRITANNIA. At 65 all core names are in and both "out" names are out, but the margin is thin (Britannia 63 vs Dabur and Emami 67).
+- Cut-off (the author's decision, revised 2026-11-05, replaces the single 65 cut-off): three bands on the weighted total. 70 or more is pre-ticked on the approval page; 60 to 69 is shown unticked, marked "needs your review", for the user to decide; below 60 is dropped. The product gate (product score 0 is always excluded) still applies. Why: two blind Marico passes at identical settings (calibration/marico_stability.html) moved HINDUNILVR 83 to 60 and NESTLEIND 67 to 54, so a single hard cut-off at 65 silently lost or admitted peers by chance. Scoring all six criteria 2 gives exactly 67, which sat just above the old cut-off, so one criterion slipping a level pushed a good peer out. Size rule (the author's decision, 2026-11-06): in Auto mode the market-cap band stays 0.5x to 5x of the target, but peers from 0.15x up to 0.5x that pass every other filter are also scored, and are always shown as "needs your review" (unticked), never pre-ticked, even with a score of 70 or more. If the user sets a market-cap range themselves, no such extension applies. Why: the 0.5x floor removed real Marico peers (EMAMILTD, COLPAL, BAJAJCON, JYOTHYLAB). Pacing (fixed 2026-11-06): the Groq scoring node now waits 20 s between calls; at 1.5 s it exceeded Groq's 8,000 tokens per minute and 5 of 9 peers came back unscored without warning. Known limit: a peer that scores below 60 on an unlucky pass is still hidden (COLPAL scores 57 in both runs). the author chose a floor of 60 over 55 knowingly.
+- This was calibrated on one target and one blind run (Groq openai/gpt-oss-120b, temperature 0; results in calibration/marico_scores_run1.html). Marico reference list agreed with the author: core DABUR, GODREJCP, EMAMILTD, BAJAJCON; borderline HINDUNILVR, COLPAL, JYOTHYLAB, TATACONSUM; out NESTLEIND, BRITANNIA. At 65 all core names are in and both "out" names are out, but the margin is thin (Britannia 63 vs Dabur and Emami 67).
 - Known weakness: the generic criteria (customer/channel, business model, geography) score high for almost any Indian packaged-goods company and lift outsiders. The 65 cut-off is provisional. The builder must re-check it with a stability re-run and a second-sector target (for example IT services), and the weights may change if it fails there. Numeric filters (for example the market-cap range) run before the AI scoring and were not part of this test.
-- Marico reference list is the acceptance test for this step. Result of the live workflow run on 2026-11-06 (execution 3403): GODREJCP (73) pre-ticked, DABUR (67) and HINDUNILVR (67) in review, unrelated industries dropped, but EMAMILTD and COLPAL never reach scoring: EMAMILTD is 0.14x Marico's market cap (below the 0.15x review floor) and COLPAL's EBITDA margin of 29.6% is above the 27.4% upper limit. BAJAJCON (0.04x) and JYOTHYLAB (0.06x) are far too small. Aarav's decision (2026-11-06): keep the Auto filters as they are and document this limit. A user who wants a peer the filters remove types its ticker in the form's Include box.
+- Marico reference list is the acceptance test for this step. Result of the live workflow run on 2026-11-06 (execution 3403): GODREJCP (73) pre-ticked, DABUR (67) and HINDUNILVR (67) in review, unrelated industries dropped, but EMAMILTD and COLPAL never reach scoring: EMAMILTD is 0.14x Marico's market cap (below the 0.15x review floor) and COLPAL's EBITDA margin of 29.6% is above the 27.4% upper limit. BAJAJCON (0.04x) and JYOTHYLAB (0.06x) are far too small. the author's decision (2026-11-06): keep the Auto filters as they are and document this limit. A user who wants a peer the filters remove types its ticker in the form's Include box.
 
-## Sharing on GitHub (Aarav asked)
+## Sharing on GitHub (the author asked)
 
 - The repo ships the workflow JSON (no credentials), the Python helper, and a README. Each user imports the workflow into their own n8n, connects their own Gmail OAuth and their own free Groq key, and runs the helper locally.
 - The form runs at the user's own localhost n8n address, so it is not reachable from other machines.
-- The result email is sent from the user's own Gmail to the address typed in the form. It never uses Aarav's account.
+- The result email is sent from the user's own Gmail to the address typed in the form. It never uses the author's account.
 - A public hosted demo is out of scope.
 
-## Decision on sample data (Aarav)
+## Decision on sample data (the author)
 
 - The GitHub repo includes a sample Marico comps Excel, with a README and Sources-sheet disclaimer: data from Yahoo Finance, illustration only, not investment advice.
 

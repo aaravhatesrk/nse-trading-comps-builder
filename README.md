@@ -91,6 +91,8 @@ Runs the unit tests (no network), including the checks on the Football Field for
 
 ## Disclaimer
 
+**Personal and educational use.** This project reads Yahoo Finance through unofficial endpoints and downloads public NSE files. Check Yahoo's and NSE's terms before using it for anything beyond personal study, and do not redistribute the data it fetches.
+
 Data comes from Yahoo Finance and public NSE lists. It is for illustration only, may be incomplete or delayed, and is **not investment advice**. Check any figure against company filings before relying on it. This project is not affiliated with Yahoo, NSE, Groq or Google.
 
 ## License
