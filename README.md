@@ -6,7 +6,7 @@ Type an NSE ticker into a form. Get back an Excel trading-comps workbook by emai
 
 The workflow screens the Nifty Total Market universe for companies in the same industry, asks an AI to score how similar each business is, lets you approve the shortlist, then emails a workbook with live formulas, a football-field chart, short AI commentary and a sources sheet. It runs on free data and free APIs, on your own machine.
 
-A sample output for Marico is in [`samples/marico_comps.xlsx`](samples/marico_comps.xlsx). It was built before the upside/downside row described below was added, so that row is missing from it.
+A sample output for Marico is in [`samples/marico_comps.xlsx`](samples/marico_comps.xlsx). It was built on 6 November 2026 with the current version, so it includes the median value row and the upside/downside column. Prices and multiples are a snapshot from that day.
 
 ## How it works
 
