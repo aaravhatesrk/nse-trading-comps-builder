@@ -113,7 +113,7 @@ def test_sources_sheet_has_disclaimer_exclusions_and_basis(wb):
     assert "Yahoo Finance" in texts and "not investment advice" in texts
     assert "BADCO" in texts and "negative EBITDA" in texts
     assert "roce filter dropped" in texts
-    assert "2026-03-31" in texts
+    assert "trailing twelve months" in texts
 
 
 def test_trimmed_outlier_is_excluded_from_statistics_and_listed(tmp_path):
@@ -128,3 +128,8 @@ def test_trimmed_outlier_is_excluded_from_statistics_and_listed(tmp_path):
     assert str(ws[f"{used_col}{excel.PEER_FIRST_ROW}"].value).startswith("=")
     texts = " | ".join(str(c.value) for row in wb["Sources and Assumptions"].iter_rows() for c in row if c.value)
     assert "E: EV/EBITDA" in texts and "trimmed" in texts
+
+
+def test_basis_label_says_trailing_twelve_months_not_fiscal_year(wb):
+    text = " ".join(str(c.value) for ws in wb.worksheets for row in ws.iter_rows() for c in row if c.value)
+    assert "trailing twelve months" in text and "fiscal year ended" not in text

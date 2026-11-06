@@ -58,7 +58,7 @@ def _criteria_lines(c: Criteria) -> list[str]:
 
 
 def _post_resume(url: str, data: dict) -> None:
-    requests.post(url, json=data, timeout=10)
+    requests.post(url, json=data, timeout=10).raise_for_status()
 
 
 def create_app(
@@ -194,8 +194,11 @@ def create_app(
         if url:
             try:
                 notify_resume(url, {"id": rid, "chosen": chosen})
-            except Exception:  # noqa: BLE001 - the status endpoint is the fallback
+            except Exception:  # noqa: BLE001 - tell the user honestly
                 log.exception("resume notification failed")
+                return render_template_string(
+                    PAGE, message="Your choice was saved, but the workflow could not be notified, so the Excel file may not "
+                                  "arrive. Check that n8n is running, then submit the form again."), 502
         return render_template_string(PAGE, message="Thanks. Your Excel file will arrive by email shortly.")
 
     @app.get("/approvals/<rid>/status")

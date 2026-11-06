@@ -109,7 +109,7 @@ def _trimmed(peers: list[PeerRow]) -> dict[str, dict[str, float]]:
 
 def _write_comps(ws: Worksheet, target: Profile, peers: list[PeerRow]) -> dict[str, dict[str, float]]:
     ws["A1"], ws["A1"].font = f"Trading comps: {target.name or target.symbol}", Font(bold=True, size=14)
-    ws["A2"] = (f"Basis: last reported fiscal year ended {target.fiscal_year_end or 'n/a'}; "
+    ws["A2"] = ("Basis: trailing twelve months revenue and EBITDA (Yahoo), balance sheet as last reported; "
                 "market cap and price are current. ₹ crore unless stated.")
     ws["A3"] = "Blue = input value, black = formula. Outlier multiples are marked 'trimmed' and excluded from the statistics."
     for key, title in _COLUMNS:
@@ -230,7 +230,7 @@ def _write_sources(ws: Worksheet, target: Profile, sources: SourcesInfo, trimmed
     rows: list[tuple[str, str]] = [
         ("Data source", "Yahoo Finance (unofficial endpoints) and NSE public lists (Nifty Total Market, EQUITY_L)."),
         ("Data fetched on", sources.fetched_on.isoformat()),
-        ("Fundamentals basis", f"Last reported fiscal year ended {target.fiscal_year_end or 'n/a'}; market cap and price current; consolidated as Yahoo returns."),
+        ("Fundamentals basis", "Revenue and EBITDA are trailing twelve months, balance sheet as last reported; market cap and price current; consolidated as Yahoo returns."),
         ("Units", "Rupees crore unless stated."),
         ("Derived inputs", "EPS = price / trailing P/E and book value per share = price / P/B (Yahoo provides the ratios)."),
         ("Enterprise value", "Market cap + net debt. Minority interest is ignored."),

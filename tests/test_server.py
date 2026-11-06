@@ -299,3 +299,26 @@ def test_build_works_with_a_relative_build_dir(tmp_path, monkeypatch):
     client.post(f"/approve/{out['id']}", data={"peer": ["P1"]})
     res = client.post("/build", json={"id": out["id"], **BUILD_BODY})
     assert res.status_code == 200 and "spreadsheetml" in res.content_type
+
+
+def test_submit_tells_the_truth_when_the_workflow_cannot_be_resumed(tmp_path):
+    def boom(url, data):
+        raise RuntimeError("n8n down")
+    app = create_app(store=ApprovalStore(tmp_path / "a"), load_universe=lambda: [], fetch_profile=lambda s, r=None: None,
+                     build_dir=tmp_path / "o", notify_resume=boom)
+    client = app.test_client()
+    out = make_request(client, resume_url="http://localhost:5678/webhook-waiting/1")
+    res = client.post(out["url"].replace("http://localhost", ""), data={"peer": "P1"})
+    assert res.status_code == 502 and b"could not" in res.data
+
+
+def test_post_resume_raises_on_http_error(monkeypatch):
+    import requests
+    from helper import server
+
+    class R:
+        def raise_for_status(self):
+            raise requests.HTTPError("500")
+    monkeypatch.setattr(server.requests, "post", lambda *a, **k: R())
+    with pytest.raises(requests.HTTPError):
+        server._post_resume("http://x", {})
