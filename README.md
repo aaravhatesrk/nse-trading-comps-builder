@@ -1,10 +1,12 @@
 # NSE Trading Comps Builder
 
+[![tests](https://github.com/aaravhatesrk/nse-trading-comps-builder/actions/workflows/tests.yml/badge.svg)](https://github.com/aaravhatesrk/nse-trading-comps-builder/actions/workflows/tests.yml)
+
 Type an NSE ticker into a form. Get back an Excel trading-comps workbook by email.
 
 The workflow screens the Nifty Total Market universe for companies in the same industry, asks an AI to score how similar each business is, lets you approve the shortlist, then emails a workbook with live formulas, a football-field chart, short AI commentary and a sources sheet. It runs on free data and free APIs, on your own machine.
 
-A sample output for Marico is in [`samples/marico_comps.xlsx`](samples/marico_comps.xlsx).
+A sample output for Marico is in [`samples/marico_comps.xlsx`](samples/marico_comps.xlsx). It was built before the upside/downside row described below was added, so that row is missing from it.
 
 ## How it works
 
@@ -16,6 +18,15 @@ A sample output for Marico is in [`samples/marico_comps.xlsx`](samples/marico_co
 6. **Workbook**: outlier multiples are trimmed (1.5x the interquartile range), then the workbook is built and emailed from your own Gmail.
 
 The workbook has four sheets: Comps (live formulas), Football Field (chart), Commentary, and Sources and Assumptions (criteria used, excluded peers and why, disclaimer).
+
+### Football Field sheet
+
+- **Table (rows 5 to 8):** for each multiple (EV/EBITDA, EV/Sales, P/E, P/B) the implied value per share at the 25th percentile, median and 75th percentile of the peer multiples. EV multiples are turned into a per-share price using the target's net debt and shares outstanding.
+- **Median value row (row 9):** the middle value of the four median-implied prices. It is the one number to compare with the share price.
+- **Upside / (downside) column (G):** `median-implied price / current price - 1`, shown as a percentage, negative in red. Positive means the peers' median multiples value the company above its market price; negative means below. A multiple that cannot be computed shows `n/a`.
+- **Target inputs block (rows 11 to 17):** price, EPS and book value per share to two decimals; EBITDA, revenue, net debt (all in rupees crore) and shares outstanding as whole numbers with thousands separators.
+
+Read the upside as "what the peers' multiples imply", not as a price target. It moves with which peers you approve, and with few peers the median is weak.
 
 ## What you need
 
@@ -74,7 +85,7 @@ Ranges are optional: market cap and revenue are in rupees crore, EBITDA margin a
 pytest
 ```
 
-Runs the unit tests (no network). Tests marked `live` (real network) and `excel` (needs desktop Excel on Windows) are skipped by default.
+Runs the unit tests (no network), including the checks on the Football Field formats and the upside row. GitHub Actions runs the same command on every push (see the badge above). Tests marked `live` (real network) and `excel` (needs desktop Excel on Windows) are skipped by default. `pytest -m excel` recalculates generated workbooks in real Excel for five random peer sets and compares the median value and upside figures with an independent Python calculation.
 
 `calibration/` holds the scripts and results used to check the scoring against hand-picked reference lists for Marico (FMCG) and Infosys (IT services). See `DESIGN.md` for the full design and every decision.
 
