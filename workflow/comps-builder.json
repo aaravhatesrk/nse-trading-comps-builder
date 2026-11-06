@@ -155,7 +155,7 @@
       ],
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "const s = $input.first().json;\nlet problem = '';\nif (s.error) {\n  problem = String(s.error);\n} else if (!Array.isArray(s.candidates) || s.candidates.length === 0) {\n  problem = 'No companies in the same industry passed the filters. Loosen the ranges, or leave them blank for Auto.';\n}\nreturn [{ json: { ...s, problem } }];"
+        "jsCode": "const group = (list) => {\n  const by = {};\n  for (const e of list || []) { (by[e.reason] = by[e.reason] || []).push(e.symbol); }\n  return Object.entries(by).map(([r, s]) => '- ' + r + ': ' + s.join(', ')).join('\\n');\n};\nconst s = $input.first().json;\nlet problem = '';\nif (s.error) {\n  problem = String(s.error);\n} else if (!Array.isArray(s.candidates) || s.candidates.length === 0) {\n  problem = 'No companies in the same industry passed the filters.\\n\\nRemoved by the screen:\\n' + (group(s.excluded) || '- none') + '\\n\\nLoosen the ranges, or leave them blank for Auto.';\n}\nreturn [{ json: { ...s, problem } }];"
       }
     },
     {
@@ -267,7 +267,7 @@
       ],
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "const prompts = $('Build Score Prompts').all();\nconst answers = $input.all();\nconst scored = answers.map((item, i) => {\n  let llm = null;\n  try {\n    llm = JSON.parse(item.json.choices[0].message.content);\n  } catch (e) {\n    llm = null;\n  }\n  return { profile: prompts[i].json.profile, llm };\n});\nreturn [{ json: { target: $('Check Screen').first().json.target, scored } }];"
+        "jsCode": "const prompts = $('Build Score Prompts').all();\nconst answers = $input.all();\nconst scored = answers.map((item, i) => {\n  let llm = null;\n  let score_error = '';\n  try {\n    llm = JSON.parse(item.json.choices[0].message.content);\n  } catch (e) {\n    score_error = item.json.error ? String(item.json.error.message || item.json.error) : 'model reply was not valid JSON';\n  }\n  return { profile: prompts[i].json.profile, llm, score_error };\n});\nreturn [{ json: { target: $('Check Screen').first().json.target, scored } }];"
       }
     },
     {
@@ -302,7 +302,7 @@
       ],
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "const r = $input.first().json;\nconst shortlist = r.shortlist || [];\nconst rejected = (r.rejected || []).map((x) => '- ' + x.symbol + ': ' + x.reason).join('\\n');\nconst target = $('Check Screen').first().json.target.symbol;\nconst too_few = shortlist.length < 3;\nconst message = 'Only ' + shortlist.length + ' of the screened companies were similar enough to ' + target + ' (at least 3 are needed for meaningful comps).\\n\\nNot shortlisted:\\n' + rejected + '\\n\\nTry loosening the ranges or adding tickers under include.';\nreturn [{ json: { ...r, too_few, message } }];"
+        "jsCode": "const group = (list) => {\n  const by = {};\n  for (const e of list || []) { (by[e.reason] = by[e.reason] || []).push(e.symbol); }\n  return Object.entries(by).map(([r, s]) => '- ' + r + ': ' + s.join(', ')).join('\\n');\n};\nconst r = $input.first().json;\nconst shortlist = r.shortlist || [];\nconst rejectedAll = r.rejected || [];\nconst isUnscored = (x) => String(x.reason).startsWith('unscored');\nconst unscored = rejectedAll.filter(isUnscored);\nconst rejected = rejectedAll.filter((x) => !isUnscored(x)).map((x) => '- ' + x.symbol + ': ' + x.reason).join('\\n');\nconst screen = $('Check Screen').first().json;\nconst target = screen.target.symbol;\nconst too_few = shortlist.length < 3;\nconst limitHit = unscored.length > 0 && unscored.length * 2 >= rejectedAll.length + shortlist.length;\nlet message = 'Only ' + shortlist.length + ' of the screened companies were similar enough to ' + target + ' (at least 3 are needed for meaningful comps).\\n';\nif (limitHit) {\n  message += '\\n' + unscored.length + ' companies could not be scored by the AI, most likely because the free Groq daily limit was reached. Try again later; loosening the ranges will not help.\\n';\n} else if (unscored.length) {\n  message += '\\n' + unscored.length + ' companies could not be scored by the AI (' + unscored.map((x) => x.symbol).join(', ') + '). Run again to retry them.\\n';\n}\nmessage += '\\nScored but not shortlisted:\\n' + (rejected || '- none') + '\\n\\nRemoved by the screen:\\n' + (group(screen.excluded) || '- none') + '\\n\\nTry loosening the ranges or adding tickers under include.';\nreturn [{ json: { ...r, too_few, message } }];"
       }
     },
     {
@@ -406,7 +406,7 @@
         "sendTo": "={{ $('Build Screen Request').first().json.email }}",
         "subject": "=Approve peers for {{ $(\"Check Screen\").first().json.target.symbol }} trading comps",
         "emailType": "html",
-        "message": "=<p>{{ $(\"Rank Peers\").first().json.shortlist.length }} peers were shortlisted for {{ $(\"Check Screen\").first().json.target.symbol }}.</p><p><a href=\"{{ $json.url }}\">Review and approve the peer list</a> (link valid for 24 hours; it opens on the computer that runs the helper).</p><p>Illustration only, not investment advice.</p>",
+        "message": "=<p>{{ $(\"Rank Peers\").first().json.shortlist.length }} peers were shortlisted for {{ $(\"Check Screen\").first().json.target.symbol }}.</p>{{ ($(\"Rank Peers\").first().json.rejected || []).filter((x) => String(x.reason).startsWith(\"unscored\")).length ? \"<p><b>\" + ($(\"Rank Peers\").first().json.rejected || []).filter((x) => String(x.reason).startsWith(\"unscored\")).length + \" companies could not be scored by the AI and are not in this list (see the Sources sheet). Run again to retry them.</b></p>\" : \"\" }}<p><a href=\"{{ $json.url }}\">Review and approve the peer list</a> (link valid for 24 hours; it opens on the computer that runs the helper).</p><p>Illustration only, not investment advice.</p>",
         "options": {
           "appendAttribution": false
         }
@@ -463,7 +463,7 @@
     },
     {
       "id": "0d2039c7-854c-4e61-acc4-c88bf3d191a1",
-      "name": "Build Commentary Prompt",
+      "name": "Build Facts Request",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
@@ -472,7 +472,7 @@
       ],
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "const chosen = $input.first().json.body.chosen;\nconst target = $('Check Screen').first().json.target;\nconst peers = $('Rank Peers').first().json.shortlist.filter((p) => chosen.includes(p.profile.symbol));\nconst x = (a, b) => (a != null && b != null && b > 0 ? Math.round((a / b) * 10) / 10 : null);\nconst facts = (p) => ({\n  symbol: p.symbol,\n  name: p.name,\n  market_cap_cr: p.market_cap_cr,\n  ev_ebitda: x(p.ev_cr, p.ebitda_cr),\n  ev_sales: x(p.ev_cr, p.revenue_cr),\n  pe: p.pe,\n  pb: p.pb,\n  ebitda_margin: p.ebitda_margin\n});\nconst data = { target: facts(target), peers: peers.map((p) => ({ ...facts(p.profile), similarity: p.similarity })) };\nconst system = [\n  'You write short valuation commentary for an investment banking trading comps sheet.',\n  'Use ONLY the numbers provided. Never invent or recompute figures. If a value is null, say it is not available.',\n  'Return ONLY JSON: {\"summary\":\"2 to 3 sentences on how the target trades versus the peer set\",\"per_peer\":{\"SYMBOL\":\"one sentence on that peer\"}}',\n  'Include every peer symbol in per_peer. Plain text, no markdown.'\n].join('\\n');\nreturn [{ json: { chosen, payload: { model: 'openai/gpt-oss-120b', temperature: 0, response_format: { type: 'json_object' }, messages: [{ role: 'system', content: system }, { role: 'user', content: JSON.stringify(data) }] } } }];"
+        "jsCode": "const chosen = $input.first().json.body.chosen;\nconst target = $('Check Screen').first().json.target;\nconst peers = $('Rank Peers').first().json.shortlist.filter((p) => chosen.includes(p.profile.symbol));\nreturn [{ json: { chosen, facts_body: { target, peers: peers.map((p) => p.profile) } } }];"
       }
     },
     {
@@ -481,7 +481,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        3808,
+        4256,
         192
       ],
       "parameters": {
@@ -508,7 +508,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        4032,
+        4480,
         192
       ],
       "parameters": {
@@ -522,7 +522,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        4256,
+        4704,
         192
       ],
       "parameters": {
@@ -549,7 +549,7 @@
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.2,
       "position": [
-        4480,
+        4928,
         192
       ],
       "parameters": {
@@ -590,6 +590,47 @@
         "options": {
           "appendAttribution": false
         }
+      }
+    },
+    {
+      "id": "facts-http-0001",
+      "name": "Get Sheet Facts",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        3808,
+        192
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://127.0.0.1:5057/facts",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.facts_body) }}",
+        "options": {
+          "timeout": 30000,
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "commentary-prompt-0001",
+      "name": "Build Commentary Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4032,
+        192
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const f = $input.first().json;\nconst target = $('Check Screen').first().json.target;\nconst chosen = $('Build Facts Request').first().json.chosen;\nconst peers = $('Rank Peers').first().json.shortlist.filter((p) => chosen.includes(p.profile.symbol));\nconst data = {\n  target: { symbol: target.symbol, name: target.name, ...f.target },\n  peers: peers.map((p) => ({ symbol: p.profile.symbol, name: p.profile.name, similarity: p.similarity, ...f.peers[p.profile.symbol] })),\n  peer_statistics_used_in_sheet: f.stats,\n  outliers_removed_from_statistics: f.trimmed\n};\nconst system = [\n  'You write short valuation commentary for an investment banking trading comps sheet.',\n  'Use ONLY the numbers provided. Never invent or recompute figures. If a value is null, say it is not available.',\n  'When you describe the peer range or typical level, quote peer_statistics_used_in_sheet (min, median, max) exactly. Do not make up ranges.',\n  'Return ONLY JSON: {\"summary\":\"2 to 3 sentences on how the target trades versus the peer set\",\"per_peer\":{\"SYMBOL\":\"one sentence on that peer\"}}',\n  'Include every peer symbol in per_peer. Plain text, no markdown.'\n].join('\\n');\nreturn [{ json: { chosen, payload: { model: 'openai/gpt-oss-120b', temperature: 0, response_format: { type: 'json_object' }, messages: [{ role: 'system', content: system }, { role: 'user', content: JSON.stringify(data) }] } } }];"
       }
     }
   ],
@@ -777,7 +818,7 @@
       "main": [
         [
           {
-            "node": "Build Commentary Prompt",
+            "node": "Build Facts Request",
             "type": "main",
             "index": 0
           }
@@ -785,17 +826,6 @@
         [
           {
             "node": "Email Approval Expired",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Build Commentary Prompt": {
-      "main": [
-        [
-          {
-            "node": "Write Commentary With Groq",
             "type": "main",
             "index": 0
           }
@@ -829,6 +859,39 @@
         [
           {
             "node": "Email Comps Workbook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Facts Request": {
+      "main": [
+        [
+          {
+            "node": "Get Sheet Facts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Sheet Facts": {
+      "main": [
+        [
+          {
+            "node": "Build Commentary Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Commentary Prompt": {
+      "main": [
+        [
+          {
+            "node": "Write Commentary With Groq",
             "type": "main",
             "index": 0
           }

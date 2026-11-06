@@ -15,6 +15,7 @@ from helper.models import (Commentary, Criteria, Exclusion, PeerRow, Profile, So
 from helper.screen import (UnsupportedTarget, apply_filters, auto_criteria, check_target_supported,
                            industry_candidates, normalize_ticker, size_review_candidates)
 from helper.scoring import BadLlmOutput, decide, validate_llm_output
+from helper.stats import quartiles
 from helper.store import ApprovalStore
 
 log = logging.getLogger(__name__)
@@ -209,6 +210,29 @@ def create_app(
         if req.submitted:
             return jsonify({"state": "submitted", "chosen": list(req.chosen)})
         return jsonify({"state": "expired" if req.expired else "pending"})
+
+    @app.post("/facts")
+    def facts():
+        """The numbers the workbook shows, so commentary quotes the sheet and not a second calculation."""
+        body = request.get_json(silent=True) or {}
+        try:
+            target = profile_from_dict(body["target"])
+            peers = [profile_from_dict(p) for p in body["peers"]]
+        except (KeyError, TypeError, ValueError):
+            return error("target and peers are required", 400)
+        rnd = lambda v: None if v is None else round(v, 1)  # noqa: E731
+        keys = [k for k, _ in excel.MULTIPLES]
+        row = lambda p: {k: rnd(excel._python_multiple(p, k)) for k in keys}  # noqa: E731
+        trimmed = excel._trimmed([PeerRow(p, 0, "", "") for p in peers])
+        stats = {}
+        for k in keys:
+            values = [m for p in peers if (m := excel._python_multiple(p, k)) is not None and p.symbol not in trimmed[k]]
+            if values:
+                q1, med, q3 = quartiles(values)
+                stats[k] = {"count": len(values), "min": rnd(min(values)), "q1": rnd(q1), "median": rnd(med),
+                            "q3": rnd(q3), "max": rnd(max(values))}
+        return jsonify({"target": row(target), "peers": {p.symbol: row(p) for p in peers}, "stats": stats,
+                        "trimmed": {k: sorted(v) for k, v in trimmed.items() if v}})
 
     @app.post("/build")
     def build():

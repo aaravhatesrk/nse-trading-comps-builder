@@ -322,3 +322,14 @@ def test_post_resume_raises_on_http_error(monkeypatch):
     monkeypatch.setattr(server.requests, "post", lambda *a, **k: R())
     with pytest.raises(requests.HTTPError):
         server._post_resume("http://x", {})
+
+
+def test_facts_returns_the_sheets_own_multiples_and_stats(parts):
+    client, _, _ = parts
+    peers = [profile_to_dict(PROFILES[s]) for s in ("P1", "P2")]
+    res = client.post("/facts", json={"target": profile_to_dict(PROFILES["TGT"]), "peers": peers}).get_json()
+    p1 = PROFILES["P1"]
+    expected = (p1.market_cap_cr + p1.net_debt_cr) / p1.ebitda_cr
+    assert res["peers"]["P1"]["ev_ebitda"] == pytest.approx(expected, abs=0.05)
+    stats = res["stats"]["ev_ebitda"]
+    assert stats["min"] <= stats["median"] <= stats["max"] and stats["count"] == 2
