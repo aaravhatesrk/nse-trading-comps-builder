@@ -368,3 +368,30 @@ def test_groq_route_forwards_the_callers_auth_header_and_caches(tmp_path):
     second = client.post("/groq/chat/completions", json={"messages": []}, headers={"Authorization": "Bearer abc"})
     assert first.status_code == 200 and first.get_json() == second.get_json() == body
     assert seen == ["Bearer abc"]
+
+
+def _near_miss_client(tmp_path):
+    PROFILES["FAR"] = prof("FAR", 100000)  # 10x the target: outside the Auto market-cap band
+    uni = [*UNIVERSE, UniverseRow("FAR", "Far Ltd", "FMCG", OLD)]
+    app = create_app(store=ApprovalStore(tmp_path / "a"), load_universe=lambda: uni, fetch_profile=fake_fetch,
+                     build_dir=tmp_path / "o", today=TODAY)
+    return app.test_client()
+
+
+def test_auto_mode_returns_filter_rejected_peers_as_review_only(tmp_path):
+    try:
+        res = _near_miss_client(tmp_path).post("/screen", json={"ticker": "TGT"}).get_json()
+    finally:
+        PROFILES.pop("FAR")
+    far = next(c for c in res["candidates"] if c["symbol"] == "FAR")
+    assert far["size_review"] is True and "market cap" in far["review_reason"]
+    assert not any(e["symbol"] == "FAR" for e in res["excluded"])
+    assert not any(c["symbol"] == "NEG" for c in res["candidates"])  # negative EBITDA is not a near miss
+
+
+def test_user_set_ranges_are_never_second_guessed(tmp_path):
+    try:
+        res = _near_miss_client(tmp_path).post("/screen", json={"ticker": "TGT", "overrides": {"revenue_cr": [1000, 9000]}}).get_json()
+    finally:
+        PROFILES.pop("FAR")
+    assert not any(c["symbol"] == "FAR" for c in res["candidates"])

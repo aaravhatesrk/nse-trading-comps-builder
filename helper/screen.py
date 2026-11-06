@@ -1,6 +1,8 @@
 """Peer screening: ticker normalising, Auto criteria, and filter application."""
 from __future__ import annotations
 
+import math
+
 from dataclasses import replace
 from datetime import date
 from typing import Any, Iterable, Mapping, Sequence
@@ -196,3 +198,17 @@ def size_review_candidates(
     normal = {p.symbol for p in apply_filters(target, candidates, criteria, today).kept}
     wider = replace(criteria, market_cap_cr=Range(target.market_cap_cr * REVIEW_SIZE_FLOOR, band.hi))
     return [p for p in apply_filters(target, candidates, wider, today).kept if p.symbol not in normal]
+
+
+NEAR_MISS_LIMIT = 6
+
+
+def near_miss_candidates(
+    target: Profile, candidates: Sequence[Profile], excluded: Sequence[Exclusion], limit: int = NEAR_MISS_LIMIT
+) -> list[tuple[Profile, str]]:
+    """Same-industry companies a range filter removed, closest in size first, with the reason. For review only."""
+    reasons = {e.symbol: e.reason for e in excluded if e.reason.startswith("outside")}
+    pool = [p for p in candidates if p.symbol in reasons]
+    if target.market_cap_cr:
+        pool.sort(key=lambda p: abs(math.log((p.market_cap_cr or 1e-9) / target.market_cap_cr)))
+    return [(p, reasons[p.symbol]) for p in pool[:limit]]

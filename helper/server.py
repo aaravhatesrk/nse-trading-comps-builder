@@ -13,7 +13,7 @@ from helper import excel
 from helper.models import (Commentary, Criteria, Exclusion, PeerRow, Profile, SourcesInfo,
                            UniverseRow, profile_from_dict, profile_to_dict)
 from helper.screen import (UnsupportedTarget, apply_filters, auto_criteria, check_target_supported,
-                           industry_candidates, normalize_ticker, size_review_candidates)
+                           industry_candidates, near_miss_candidates, normalize_ticker, size_review_candidates)
 from helper.scoring import BadLlmOutput, decide, validate_llm_output
 from helper.score_proxy import GroqReply, ScoreProxy
 from helper.stats import quartiles
@@ -34,7 +34,7 @@ PAGE = """<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewp
 <form method="post">
 {% for p in shortlist %}
 <label style="display:block;margin:.8rem 0"><input type="checkbox" name="peer" value="{{ p.profile.symbol }}"{% if p.tier != "review" %} checked{% endif %}>
-<b>{{ p.profile.name or p.profile.symbol }}</b> ({{ p.profile.symbol }}) similarity {{ p.similarity }}{% if p.tier == "review" %} <em>needs your review{% if p.profile.size_review %} (smaller than the usual size range){% endif %}</em>{% endif %}<br>
+<b>{{ p.profile.name or p.profile.symbol }}</b> ({{ p.profile.symbol }}) similarity {{ p.similarity }}{% if p.tier == "review" %} <em>needs your review{% if p.profile.review_reason %} (filtered out: {{ p.profile.review_reason }}){% elif p.profile.size_review %} (smaller than the usual size range){% endif %}</em>{% endif %}<br>
 <small>{{ p.reason }}{% if p.mismatch_note %} Differences: {{ p.mismatch_note }}{% endif %}</small></label>
 {% endfor %}
 <button type="submit" style="margin-top:1rem;padding:.6rem 1.2rem">Build my comps</button></form>{% endif %}
@@ -143,9 +143,13 @@ def create_app(
         result = apply_filters(target, fetched, criteria, today)
         small = size_review_candidates(target, fetched, criteria, today, "market_cap_cr" in (body.get("overrides") or {}))
         small_symbols = {p.symbol for p in small}
+        auto_mode = not (body.get("overrides") or {})
+        near = near_miss_candidates(target, fetched, [e for e in result.excluded if e.symbol not in small_symbols]) if auto_mode else []
+        near_symbols = {p.symbol for p, _ in near}
         candidates = ([profile_to_dict(p) | {"included": p.symbol in criteria.include} for p in result.kept]
-                      + [profile_to_dict(p) | {"size_review": True} for p in small])
-        excluded = [*(e for e in result.excluded if e.symbol not in small_symbols), *unavailable, *unknown]
+                      + [profile_to_dict(p) | {"size_review": True} for p in small]
+                      + [profile_to_dict(p) | {"size_review": True, "review_reason": reason} for p, reason in near])
+        excluded = [*(e for e in result.excluded if e.symbol not in small_symbols | near_symbols), *unavailable, *unknown]
         return jsonify({
             "target": profile_to_dict(target),
             "candidates": candidates,
