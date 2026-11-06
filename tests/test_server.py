@@ -80,6 +80,14 @@ def test_screen_flags_smaller_peers_for_review_in_auto_mode_only(parts):
     assert "SMALL" not in {c["symbol"] for c in manual["candidates"]}
 
 
+def test_include_forces_a_peer_from_another_industry_and_reports_unknown_tickers(parts):
+    client, _, _ = parts
+    res = client.post("/screen", json={"ticker": "TGT", "overrides": {"include": ["BANK", "ZZZ"]}}).get_json()
+    flags = {c["symbol"]: c.get("included", False) for c in res["candidates"]}
+    assert flags["BANK"] is True and flags["P1"] is False
+    assert any(e["symbol"] == "ZZZ" and "not in the Nifty Total Market" in e["reason"] for e in res["excluded"])
+
+
 def test_screen_unknown_ticker_is_422_with_message(parts):
     res = parts[0].post("/screen", json={"ticker": "NOPE"})
     assert res.status_code == 422 and "Nifty Total Market" in res.get_json()["error"]
@@ -151,6 +159,23 @@ def test_rank_size_review_peer_never_auto_selects_even_with_a_perfect_score(part
     res = client.post("/rank", json={"target": {}, "scored": [{"profile": small, "llm": good_llm()}]})
     item = res.get_json()["shortlist"][0]
     assert (item["similarity"], item["tier"]) == (100, "review")
+
+
+def test_rank_included_peer_below_the_floor_is_still_shown_for_review(parts):
+    client, _, _ = parts
+    forced = profile_to_dict(PROFILES["P1"]) | {"included": True}
+    res = client.post("/rank", json={"target": {}, "scored": [{"profile": forced, "llm": llm_with_scores(1, 1, 1, 1, 1, 1)}]})
+    item = res.get_json()["shortlist"][0]
+    assert (item["similarity"], item["tier"]) == (33, "review")
+    assert "you asked for it" in item["reason"]
+
+
+def test_rank_included_peer_with_product_zero_is_still_rejected(parts):
+    client, _, _ = parts
+    forced = profile_to_dict(PROFILES["P1"]) | {"included": True}
+    res = client.post("/rank", json={"target": {}, "scored": [{"profile": forced, "llm": llm_with_scores(0, 3, 3, 3, 3, 3)}]})
+    body = res.get_json()
+    assert body["shortlist"] == [] and "product" in body["rejected"][0]["reason"]
 
 
 def test_rank_product_zero_is_rejected(parts):

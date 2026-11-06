@@ -95,7 +95,14 @@ def create_app(
             return error(str(exc), 422)
 
         fetched, unavailable = [], []
-        for cand in industry_candidates(row, universe, criteria.min_listing_years, today):
+        by_symbol = {r.symbol: r for r in universe}
+        cands = industry_candidates(row, universe, criteria.min_listing_years, today)
+        in_industry = {c.symbol for c in cands}
+        outside = [by_symbol[s] for s in criteria.include
+                   if s in by_symbol and s not in in_industry and s != symbol and s not in criteria.exclude]
+        unknown = [Exclusion(s, "not in the Nifty Total Market list, so it cannot be included")
+                   for s in criteria.include if s not in by_symbol and s != symbol]
+        for cand in [*cands, *outside]:
             try:
                 profile = fetch_profile(cand.symbol, cand)
             except Exception as exc:  # noqa: BLE001
@@ -108,8 +115,9 @@ def create_app(
         result = apply_filters(target, fetched, criteria, today)
         small = size_review_candidates(target, fetched, criteria, today, "market_cap_cr" in (body.get("overrides") or {}))
         small_symbols = {p.symbol for p in small}
-        candidates = [profile_to_dict(p) for p in result.kept] + [profile_to_dict(p) | {"size_review": True} for p in small]
-        excluded = [*(e for e in result.excluded if e.symbol not in small_symbols), *unavailable]
+        candidates = ([profile_to_dict(p) | {"included": p.symbol in criteria.include} for p in result.kept]
+                      + [profile_to_dict(p) | {"size_review": True} for p in small])
+        excluded = [*(e for e in result.excluded if e.symbol not in small_symbols), *unavailable, *unknown]
         return jsonify({
             "target": profile_to_dict(target),
             "candidates": candidates,
@@ -130,6 +138,11 @@ def create_app(
                 decision = decide(validate_llm_output(llm))
             except BadLlmOutput as exc:
                 rejected.append({"symbol": symbol, "total": None, "reason": f"unscored: {exc}"})
+                continue
+            if profile.get("included") and decision.total is not None and llm["scores"]["product"]["score"] != 0:
+                reason = f"score {decision.total}; you asked for it with Include, so it is shown for review"
+                shortlist.append({"profile": profile, "similarity": decision.total, "tier": "review", "reason": reason,
+                                  "mismatch_note": str(llm.get("mismatch_note") or "")})
                 continue
             if not decision.kept:
                 rejected.append({"symbol": symbol, "total": decision.total, "reason": decision.reason})
